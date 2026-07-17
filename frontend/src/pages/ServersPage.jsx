@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import PageLayout from '../components/common/PageLayout';
 import useMetrics from '../hooks/useMetrics';
 import { computeHealthScore } from '../utils/healthScore';
+import { deleteAgentServer } from '../api/metricsApi';
 
 // ── Fallback Demo Servers if no agents exist ───────────────────────────────
 const DEMO_SERVERS = [
@@ -41,13 +42,48 @@ const Ring = ({ score, size = 60 }) => {
 };
 
 // ── Server Card ───────────────────────────────────────────────────────────────
-const ServerCard = ({ server, onClick }) => {
+const ServerCard = ({ server, onClick, onRemove }) => {
   const badge  = statusBadge(server.status);
   const score  = server.score;
   const color  = scoreColor(score);
   return (
-    <div className="srv-card" onClick={onClick} title={`Open ${server.name}`}>
-      <div className="srv-card-top">
+    <div className="srv-card" onClick={onClick} title={`Open ${server.name}`} style={{ position: 'relative' }}>
+      {server.isAgent && (
+        <button
+          className="srv-remove-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove(server.id);
+          }}
+          title={`Remove ${server.name}`}
+          style={{
+            position: 'absolute',
+            top: '12px',
+            right: '12px',
+            background: 'none',
+            border: 'none',
+            color: 'var(--color-text-muted)',
+            cursor: 'pointer',
+            fontSize: 'var(--text-base)',
+            zIndex: 10,
+            padding: '4px',
+            borderRadius: '4px',
+            transition: 'all 0.2s ease',
+            lineHeight: 1
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = '#ef4444';
+            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = 'var(--color-text-muted)';
+            e.currentTarget.style.background = 'none';
+          }}
+        >
+          🗑️
+        </button>
+      )}
+      <div className="srv-card-top" style={{ paddingRight: server.isAgent ? '24px' : '0' }}>
         <div className="srv-card-info">
           <div className="srv-card-name">{server.name}</div>
           <div className="srv-card-hostname">{server.hostname} · {server.ip}</div>
@@ -104,6 +140,19 @@ const ServersPage = () => {
     navigator.clipboard.writeText(text);
     setCopied(key);
     setTimeout(() => setCopied(null), 2000);
+  };
+
+  const handleRemoveServer = async (serverId) => {
+    const confirmRemove = window.confirm(
+      `Are you sure you want to remove this server ("${serverId}")?\n\nIMPORTANT: Make sure to stop the agent.py script running on that machine first, or it will automatically reconnect and reappear within 5 seconds!`
+    );
+    if (!confirmRemove) return;
+
+    try {
+      await deleteAgentServer(serverId);
+    } catch (err) {
+      alert(`Failed to remove server: ${err.message}`);
+    }
   };
 
   // Build real server entry from live data
@@ -208,7 +257,7 @@ const ServersPage = () => {
       {/* Server grid */}
       <div className="srv-grid">
         {displayed.map((s) => (
-          <ServerCard key={s.id} server={s} onClick={() => navigate(`/servers/${s.id}`)} />
+          <ServerCard key={s.id} server={s} onClick={() => navigate(`/servers/${s.id}`)} onRemove={handleRemoveServer} />
         ))}
       </div>
 

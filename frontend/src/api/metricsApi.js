@@ -46,6 +46,12 @@ export const updateSmtpSettings = (config) => apiClient.post('/smtp', config);
  */
 export const fetchAgentServers = () => apiClient.get('/metrics/agents');
 
+/**
+ * Remove an active remote server agent
+ * @param {string} serverId - ID of the server to remove
+ */
+export const deleteAgentServer = (serverId) => apiClient.delete(`/metrics/agents/${serverId}`);
+
 export default apiClient;
 
 

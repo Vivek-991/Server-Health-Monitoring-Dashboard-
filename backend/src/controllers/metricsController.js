@@ -105,10 +105,42 @@ const getAgentServers = async (req, res) => {
   });
 };
 
+/**
+ * DELETE /api/metrics/agents/:serverId
+ * Removes a remote server agent from the active agents list.
+ */
+const removeAgentServer = async (req, res, next) => {
+  try {
+    const { serverId } = req.params;
+
+    if (!serverId) {
+      return res.status(400).json({ success: false, message: 'Missing serverId parameter.' });
+    }
+
+    if (activeAgents[serverId]) {
+      delete activeAgents[serverId];
+      
+      // Broadcast updated list to all Socket.IO clients
+      const io = req.app.get('socketio');
+      if (io) {
+        io.emit('metrics:update:agents', activeAgents);
+      }
+
+      return res.status(200).json({ success: true, message: `Server ${serverId} removed successfully.` });
+    } else {
+      return res.status(404).json({ success: false, message: `Server ${serverId} not found.` });
+    }
+  } catch (error) {
+    logger.error('removeAgentServer error:', error);
+    next(error);
+  }
+};
+
 module.exports = {
   getLiveMetrics,
   getHistoricalMetrics,
   getServerStatus,
   pushAgentMetrics,
-  getAgentServers
+  getAgentServers,
+  removeAgentServer
 };

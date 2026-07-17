@@ -6,6 +6,7 @@ const {
   getServerStatus,
   pushAgentMetrics,
   getAgentServers,
+  removeAgentServer,
 } = require('../controllers/metricsController');
 
 // @route   GET /api/metrics/live
@@ -32,6 +33,11 @@ router.post('/push', pushAgentMetrics);
 // @desc    Get all current active remote server agents
 // @access  Public
 router.get('/agents', getAgentServers);
+
+// @route   DELETE /api/metrics/agents/:serverId
+// @desc    Remove an active remote server agent
+// @access  Public
+router.delete('/agents/:serverId', removeAgentServer);
 
 
 module.exports = router;
