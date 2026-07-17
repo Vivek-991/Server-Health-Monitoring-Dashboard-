@@ -94,23 +94,25 @@ const ServersPage = () => {
     return computeHealthScore(current).score;
   }, [current]);
 
-  const realServer = {
-    id: 'local',
-    name: 'localhost',
-    hostname: window.location.hostname,
-    ip: '127.0.0.1',
-    os: current?.os?.distro || 'Local OS',
-    role: 'Primary Monitor',
-    cpu:  Math.round(current?.cpu?.usage ?? 0),
-    ram:  Math.round(current?.memory?.usagePercent ?? 0),
-    disk: Math.round(current?.disks?.[0]?.usagePercent ?? 0),
-    temp: Math.round(current?.temperatures?.[0]?.main ?? 40),
-    uptime: current?.os ? formatUptime(current.os.uptime) : '—',
-    status: realScore >= 80 ? 'online' : realScore >= 60 ? 'warning' : 'critical',
-    services: current?.services?.length ?? 0,
-    score: realScore,
-    isLive: true,
-  };
+  const realServer = useMemo(() => {
+    return {
+      id: 'local',
+      name: 'localhost',
+      hostname: window.location.hostname,
+      ip: '127.0.0.1',
+      os: current?.os?.distro || 'Local OS',
+      role: 'Primary Monitor',
+      cpu:  Math.round(current?.cpu?.usage ?? 0),
+      ram:  Math.round(current?.memory?.usagePercent ?? 0),
+      disk: Math.round(current?.disks?.[0]?.usagePercent ?? 0),
+      temp: Math.round(current?.temperatures?.[0]?.main ?? 40),
+      uptime: current?.os ? formatUptime(current.os.uptime) : '—',
+      status: realScore >= 80 ? 'online' : realScore >= 60 ? 'warning' : 'critical',
+      services: current?.services?.length ?? 0,
+      score: realScore,
+      isLive: true,
+    };
+  }, [current, realScore]);
 
   // Convert active agent metrics map to server list
   const remoteServers = useMemo(() => {

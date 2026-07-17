@@ -36,7 +36,6 @@ const Dashboard = () => {
     disks,
     network,
     connected,
-    status,
   } = useMetrics();
 
   if (loading) return <Loader message="Connecting to server…" />;

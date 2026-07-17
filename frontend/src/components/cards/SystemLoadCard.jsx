@@ -13,8 +13,6 @@ const SystemLoadCard = () => {
     ? Math.min((avgLoad / cpuCores) * 100, 100)
     : Math.min(avgLoad * 100, 100);
 
-  const severity = getSeverityColor(loadPercent);
-
   const meters = [
     { label: 'Current Load', value: currentLoad, percent: Math.min(currentLoad, 100), color: 'var(--color-accent-blue)' },
     { label: 'Avg Load (1m)',  value: avgLoad,     percent: loadPercent,               color: 'var(--color-accent-cyan)' },

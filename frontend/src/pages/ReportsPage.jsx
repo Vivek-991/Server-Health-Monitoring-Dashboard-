@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import PageLayout from '../components/common/PageLayout';
 import { useMetricsContext } from '../context/MetricsContext';
 import { useAlerts } from '../context/AlertsContext';
 import { useActivity } from '../context/ActivityContext';
-import { formatBytes, formatBandwidth } from '../utils/formatters';
+import { formatBytes } from '../utils/formatters';
 
 const ReportsPage = () => {
   const { current, history } = useMetricsContext();
