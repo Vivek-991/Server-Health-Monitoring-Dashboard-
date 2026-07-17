@@ -2,6 +2,7 @@ const { collectMetrics } = require('../services/systemMetrics');
 const MetricSnapshot = require('../models/MetricSnapshot');
 const logger = require('../utils/logger');
 const { sendEmailAlert } = require('../services/emailService');
+const { activeAgents } = require('../controllers/metricsController');
 
 const EMIT_INTERVAL_MS = 2000; // broadcast every 2 seconds
 const EMAIL_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
@@ -29,6 +30,33 @@ const initMetricsSocket = (io) => {
             `Critical warning: CPU usage is at ${metrics.cpu.usage.toFixed(1)}%, exceeding the critical 90% monitoring threshold.\n\nServer Model: ${metrics.cpu.model || 'Unknown'}\nCores: ${metrics.cpu.cores}\nTimestamp: ${new Date().toISOString()}`
           ).catch((err) => logger.error('Email alert trigger error:', err.message));
         }
+      }
+
+      // Check for inactive agent servers (timeout after 15 seconds)
+      const TIMEOUT_MS = 15000;
+      const now = Date.now();
+      let agentsChanged = false;
+
+      Object.keys(activeAgents).forEach((serverId) => {
+        const agent = activeAgents[serverId];
+        if (agent.status !== 'offline') {
+          const lastUpdate = new Date(agent.timestamp).getTime();
+          if (now - lastUpdate > TIMEOUT_MS) {
+            agent.status = 'offline';
+            agentsChanged = true;
+            logger.warn(`Agent "${serverId}" has timed out and is now offline.`);
+            
+            // Send email alert for offline status
+            sendEmailAlert(
+              `Server Offline Alert: ${serverId}`,
+              `Warning: The remote monitoring agent on server "${serverId}" (${agent.hostname || 'Unknown'}, IP: ${agent.ip || 'Unknown'}) has stopped sending metrics. It has been marked as OFFLINE.\n\nLast Heartbeat: ${agent.timestamp}\nTimestamp: ${new Date().toISOString()}`
+            ).catch((err) => logger.error(`Email alert trigger error for offline server ${serverId}:`, err.message));
+          }
+        }
+      });
+
+      if (agentsChanged) {
+        io.emit('metrics:update:agents', activeAgents);
       }
 
       // Persist snapshot to MongoDB (fire-and-forget, non-fatal)

@@ -142,5 +142,6 @@ module.exports = {
   getServerStatus,
   pushAgentMetrics,
   getAgentServers,
-  removeAgentServer
+  removeAgentServer,
+  activeAgents
 };

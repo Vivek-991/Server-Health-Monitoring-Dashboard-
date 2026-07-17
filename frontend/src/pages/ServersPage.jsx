@@ -46,8 +46,18 @@ const ServerCard = ({ server, onClick, onRemove }) => {
   const badge  = statusBadge(server.status);
   const score  = server.score;
   const color  = scoreColor(score);
+  const isOffline = server.status === 'offline';
   return (
-    <div className="srv-card" onClick={onClick} title={`Open ${server.name}`} style={{ position: 'relative' }}>
+    <div 
+      className="srv-card" 
+      onClick={onClick} 
+      title={`Open ${server.name}`} 
+      style={{ 
+        position: 'relative', 
+        opacity: isOffline ? 0.65 : 1,
+        transition: 'opacity 0.3s ease'
+      }}
+    >
       {server.isAgent && (
         <button
           className="srv-remove-btn"
@@ -185,7 +195,8 @@ const ServersPage = () => {
   const remoteServers = useMemo(() => {
     return Object.keys(agents).map((key) => {
       const ag = agents[key];
-      const score = fakeScore({
+      const isOffline = ag.status === 'offline';
+      const score = isOffline ? 0 : fakeScore({
         cpu: ag.cpu?.usage ?? 0,
         ram: ag.memory?.usagePercent ?? 0,
         disk: ag.disks?.[0]?.usagePercent ?? 0
@@ -197,10 +208,10 @@ const ServersPage = () => {
         ip: ag.ip || '0.0.0.0',
         os: ag.os?.distro || 'Linux',
         role: 'Remote Server Agent',
-        cpu: Math.round(ag.cpu?.usage ?? 0),
-        ram: Math.round(ag.memory?.usagePercent ?? 0),
-        disk: Math.round(ag.disks?.[0]?.usagePercent ?? 0),
-        uptime: ag.os?.uptime ? formatUptime(ag.os.uptime) : '—',
+        cpu: isOffline ? 0 : Math.round(ag.cpu?.usage ?? 0),
+        ram: isOffline ? 0 : Math.round(ag.memory?.usagePercent ?? 0),
+        disk: isOffline ? 0 : Math.round(ag.disks?.[0]?.usagePercent ?? 0),
+        uptime: isOffline ? '—' : (ag.os?.uptime ? formatUptime(ag.os.uptime) : '—'),
         status: ag.status || 'online',
         score,
         isAgent: true

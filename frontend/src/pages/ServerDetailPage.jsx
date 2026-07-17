@@ -232,7 +232,22 @@ const ServerDetailPage = () => {
             <button className="breadcrumb-btn" onClick={() => navigate('/servers')}>Servers</button>
             <span className="breadcrumb-sep">›</span>
             <span>{name}</span>
-            {(isLocal || agentMetrics) && <span className="live-pill">● LIVE</span>}
+            {isLocal && <span className="live-pill">● LIVE</span>}
+            {!isLocal && agentMetrics && (
+              agentMetrics.status === 'offline' ? (
+                <span className="offline-pill" style={{
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  color: '#ef4444',
+                  fontSize: '0.65rem',
+                  fontWeight: '800',
+                  padding: '1px 6px',
+                  borderRadius: 'var(--radius-full)',
+                  marginLeft: 'var(--space-2)'
+                }}>● OFFLINE</span>
+              ) : (
+                <span className="live-pill">● LIVE</span>
+              )
+            )}
           </div>
           <h1 className="page-title">{name}</h1>
         </div>
@@ -240,7 +255,33 @@ const ServerDetailPage = () => {
       </div>
 
       {isLocal && <LiveServerDetail current={localCurrent} />}
-      {!isLocal && agentMetrics && <LiveServerDetail current={agentMetrics} />}
+      {!isLocal && agentMetrics && (
+        <>
+          {agentMetrics.status === 'offline' && (
+            <div style={{
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.2)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '16px',
+              marginBottom: '24px',
+              color: '#ef4444',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              fontSize: 'var(--text-sm)',
+              textAlign: 'left'
+            }}>
+              <span style={{ fontSize: '20px' }}>⚠️</span>
+              <div>
+                <strong>Server Offline</strong> — The agent on this server stopped sending metrics. Last heartbeat was received at {new Date(agentMetrics.timestamp).toLocaleString()}.
+              </div>
+            </div>
+          )}
+          <div style={{ opacity: agentMetrics.status === 'offline' ? 0.75 : 1, transition: 'opacity 0.3s ease' }}>
+            <LiveServerDetail current={agentMetrics} />
+          </div>
+        </>
+      )}
       {!isLocal && !agentMetrics && demo && <DemoServerDetail server={demo} />}
     </PageLayout>
   );

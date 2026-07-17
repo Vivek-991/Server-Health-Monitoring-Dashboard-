@@ -77,6 +77,22 @@ export const computeHealthScore = (current) => {
     return { score: 0, grade: 'N/A', color: '#4a5568', gradient: '#4a5568', breakdown: [] };
   }
 
+  if (current.status === 'offline') {
+    return {
+      score: 0,
+      grade: 'OFFLINE',
+      color: '#888888',
+      gradient: 'linear-gradient(135deg, #888888, #aaaaaa)',
+      breakdown: [
+        { label: 'CPU',         score: 0,  weight: '25%', icon: '🖥️' },
+        { label: 'Memory',      score: 0,  weight: '25%', icon: '💾' },
+        { label: 'Disk',        score: 0, weight: '20%', icon: '💿' },
+        { label: 'Temperature', score: 0, weight: '15%', icon: '🌡️' },
+        { label: 'Services',    score: 0,  weight: '15%', icon: '⚙️' },
+      ],
+    };
+  }
+
   const cpuScore  = usageToScore(current.cpu?.usage ?? 50);
   const ramScore  = usageToScore(current.memory?.usagePercent ?? 50);
   const diskScore = usageToScore(current.disk?.[0]?.usagePercent ?? 50);
