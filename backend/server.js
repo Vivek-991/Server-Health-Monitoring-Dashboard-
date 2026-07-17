@@ -68,6 +68,11 @@ app.get('/', (_req, res) => {
   res.json({ message: 'Server Health API is running 🚀', timestamp: new Date() });
 });
 
+// Serve the agent.py script for client downloads
+app.get('/agent.py', (_req, res) => {
+  res.download(path.join(__dirname, 'agent.py'), 'agent.py');
+});
+
 // 404 handler
 app.use((_req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' });

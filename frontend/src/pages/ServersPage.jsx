@@ -88,6 +88,24 @@ const ServersPage = () => {
   const { current, agents } = useMetrics();
   const [filter, setFilter] = useState('all');
 
+  // State for Add Server Modal
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newServerName, setNewServerName] = useState('aws-ec2-instance-01');
+  const [selectedOS, setSelectedOS] = useState('linux');
+  const [copied, setCopied] = useState(null);
+
+  // Compute live backend URL base (e.g. https://your-backend.onrender.com)
+  const backendBaseUrl = useMemo(() => {
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+    return apiUrl.replace(/\/api\/?$/, '');
+  }, []);
+
+  const handleCopy = (text, key) => {
+    navigator.clipboard.writeText(text);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
   // Build real server entry from live data
   const realScore = useMemo(() => {
     if (!current) return 0;
@@ -163,11 +181,18 @@ const ServersPage = () => {
 
   return (
     <PageLayout>
-      <div className="page-header">
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
         <div>
           <h1 className="page-title">🖥️ Servers</h1>
           <p className="page-sub">{allServers.length} monitored servers · {counts.online} online · {counts.warning} degraded · {counts.critical} critical</p>
         </div>
+        <button 
+          className="btn-primary" 
+          onClick={() => setShowAddModal(true)}
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', fontSize: 'var(--text-sm)' }}
+        >
+          ➕ Add Server
+        </button>
       </div>
 
       {/* Filter tabs */}
@@ -186,6 +211,173 @@ const ServersPage = () => {
           <ServerCard key={s.id} server={s} onClick={() => navigate(`/servers/${s.id}`)} />
         ))}
       </div>
+
+      {/* Add Server Modal */}
+      {showAddModal && (
+        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+          <div className="modal-box modal-box-large" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <span className="modal-title">🖥️ Connect a New Server</span>
+              <button className="modal-close" onClick={() => setShowAddModal(false)}>&times;</button>
+            </div>
+            
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)', marginBottom: '16px', textAlign: 'left', lineHeight: '1.5' }}>
+              Deploy the ServerPulse agent on your server in minutes to start tracking CPU, RAM, Disk, and network bandwidth in real-time.
+            </p>
+
+            <div className="modal-field">
+              <label htmlFor="server-name-input">1. Name Your Server</label>
+              <input
+                id="server-name-input"
+                type="text"
+                value={newServerName}
+                onChange={(e) => setNewServerName(e.target.value.replace(/[^a-zA-Z0-9-_]/g, ''))}
+                placeholder="e.g. aws-web-prod"
+                style={{ marginBottom: '12px' }}
+              />
+            </div>
+
+            <label style={{ fontSize: 'var(--text-xs)', fontWeight: '600', color: 'var(--color-text-secondary)', textTransform: 'uppercase', display: 'block', textAlign: 'left', marginTop: '12px' }}>
+              2. Select Operating System
+            </label>
+            <div className="add-server-tabs">
+              <button className={`add-server-tab ${selectedOS === 'linux' ? 'active' : ''}`} onClick={() => setSelectedOS('linux')}>🐧 Linux / AWS EC2</button>
+              <button className={`add-server-tab ${selectedOS === 'windows' ? 'active' : ''}`} onClick={() => setSelectedOS('windows')}>🪟 Windows</button>
+              <button className={`add-server-tab ${selectedOS === 'macos' ? 'active' : ''}`} onClick={() => setSelectedOS('macos')}>🍏 macOS</button>
+            </div>
+
+            <div className="step-list">
+              {selectedOS === 'linux' && (
+                <>
+                  <div className="step-item">
+                    <span className="step-number">1</span>
+                    <div className="step-content">
+                      <h4>Install Prerequisites</h4>
+                      <p>Ensure Python 3 and pip are installed, then install dependencies:</p>
+                      <div className="code-block-wrapper">
+                        <pre className="code-block">sudo apt update && sudo apt install python3 python3-pip -y && pip3 install psutil requests</pre>
+                        <div className="code-block-actions">
+                          <button className="copy-btn" onClick={() => handleCopy('sudo apt update && sudo apt install python3 python3-pip -y && pip3 install psutil requests', 'prereq')}>
+                            {copied === 'prereq' ? '✅ Copied!' : '📋 Copy'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="step-item">
+                    <span className="step-number">2</span>
+                    <div className="step-content">
+                      <h4>Run the Automatic Setup (Foreground Test)</h4>
+                      <p>Download the script and start it directly to verify connection:</p>
+                      <div className="code-block-wrapper">
+                        <pre className="code-block">{`curl -s -O ${backendBaseUrl}/agent.py && env SERVERPULSE_ID="${newServerName}" SERVERPULSE_KEY="default-secure-key-123" SERVERPULSE_URL="${backendBaseUrl}/api/metrics/push" python3 agent.py`}</pre>
+                        <div className="code-block-actions">
+                          <button className="copy-btn" onClick={() => handleCopy(`curl -s -O ${backendBaseUrl}/agent.py && env SERVERPULSE_ID="${newServerName}" SERVERPULSE_KEY="default-secure-key-123" SERVERPULSE_URL="${backendBaseUrl}/api/metrics/push" python3 agent.py`, 'run')}>
+                            {copied === 'run' ? '✅ Copied!' : '📋 Copy'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="step-item">
+                    <span className="step-number">3</span>
+                    <div className="step-content">
+                      <h4>Run in Background (Production)</h4>
+                      <p>Use nohup to keep the agent active in the background after you log out of SSH:</p>
+                      <div className="code-block-wrapper">
+                        <pre className="code-block">{`nohup env SERVERPULSE_ID="${newServerName}" SERVERPULSE_KEY="default-secure-key-123" SERVERPULSE_URL="${backendBaseUrl}/api/metrics/push" python3 agent.py > agent.log 2>&1 &`}</pre>
+                        <div className="code-block-actions">
+                          <button className="copy-btn" onClick={() => handleCopy(`nohup env SERVERPULSE_ID="${newServerName}" SERVERPULSE_KEY="default-secure-key-123" SERVERPULSE_URL="${backendBaseUrl}/api/metrics/push" python3 agent.py > agent.log 2>&1 &`, 'bg')}>
+                            {copied === 'bg' ? '✅ Copied!' : '📋 Copy'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {selectedOS === 'windows' && (
+                <>
+                  <div className="step-item">
+                    <span className="step-number">1</span>
+                    <div className="step-content">
+                      <h4>Download the Agent Script</h4>
+                      <p>Run this in PowerShell to fetch the agent script from your dashboard:</p>
+                      <div className="code-block-wrapper">
+                        <pre className="code-block">{`Invoke-WebRequest -Uri "${backendBaseUrl}/agent.py" -OutFile "agent.py"`}</pre>
+                        <div className="code-block-actions">
+                          <button className="copy-btn" onClick={() => handleCopy(`Invoke-WebRequest -Uri "${backendBaseUrl}/agent.py" -OutFile "agent.py"`, 'win-dl')}>
+                            {copied === 'win-dl' ? '✅ Copied!' : '📋 Copy'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="step-item">
+                    <span className="step-number">2</span>
+                    <div className="step-content">
+                      <h4>Install Dependencies & Start Agent</h4>
+                      <p>Install modules, set configuration, and start the python agent:</p>
+                      <div className="code-block-wrapper">
+                        <pre className="code-block">{`pip install psutil requests; $env:SERVERPULSE_ID="${newServerName}"; $env:SERVERPULSE_KEY="default-secure-key-123"; $env:SERVERPULSE_URL="${backendBaseUrl}/api/metrics/push"; python agent.py`}</pre>
+                        <div className="code-block-actions">
+                          <button className="copy-btn" onClick={() => handleCopy(`pip install psutil requests; $env:SERVERPULSE_ID="${newServerName}"; $env:SERVERPULSE_KEY="default-secure-key-123"; $env:SERVERPULSE_URL="${backendBaseUrl}/api/metrics/push"; python agent.py`, 'win-run')}>
+                            {copied === 'win-run' ? '✅ Copied!' : '📋 Copy'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {selectedOS === 'macos' && (
+                <>
+                  <div className="step-item">
+                    <span className="step-number">1</span>
+                    <div className="step-content">
+                      <h4>Install Prerequisites</h4>
+                      <p>Install the required Python modules:</p>
+                      <div className="code-block-wrapper">
+                        <pre className="code-block">pip3 install psutil requests</pre>
+                        <div className="code-block-actions">
+                          <button className="copy-btn" onClick={() => handleCopy('pip3 install psutil requests', 'mac-deps')}>
+                            {copied === 'mac-deps' ? '✅ Copied!' : '📋 Copy'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="step-item">
+                    <span className="step-number">2</span>
+                    <div className="step-content">
+                      <h4>Download and Start the Agent</h4>
+                      <p>Download the script and start it pointing to your backend:</p>
+                      <div className="code-block-wrapper">
+                        <pre className="code-block">{`curl -s -O ${backendBaseUrl}/agent.py && env SERVERPULSE_ID="${newServerName}" SERVERPULSE_KEY="default-secure-key-123" SERVERPULSE_URL="${backendBaseUrl}/api/metrics/push" python3 agent.py`}</pre>
+                        <div className="code-block-actions">
+                          <button className="copy-btn" onClick={() => handleCopy(`curl -s -O ${backendBaseUrl}/agent.py && env SERVERPULSE_ID="${newServerName}" SERVERPULSE_KEY="default-secure-key-123" SERVERPULSE_URL="${backendBaseUrl}/api/metrics/push" python3 agent.py`, 'mac-run')}>
+                            {copied === 'mac-run' ? '✅ Copied!' : '📋 Copy'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="modal-actions" style={{ marginTop: '20px' }}>
+              <button className="btn-secondary" onClick={() => setShowAddModal(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </PageLayout>
   );
 };
