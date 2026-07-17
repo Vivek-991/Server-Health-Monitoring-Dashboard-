@@ -1,6 +1,5 @@
 import React from 'react';
 import useMetrics from '../../hooks/useMetrics';
-import { getSeverityColor } from '../../utils/formatters';
 
 const SystemLoadCard = () => {
   const { load, cpuCores } = useMetrics();
