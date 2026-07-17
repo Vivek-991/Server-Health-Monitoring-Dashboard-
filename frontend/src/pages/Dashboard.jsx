@@ -12,6 +12,9 @@ import UptimeCard      from '../components/cards/UptimeCard';
 import ServicesCard    from '../components/cards/ServicesCard';
 import TemperatureCard from '../components/cards/TemperatureCard';
 import SystemLoadCard  from '../components/cards/SystemLoadCard';
+import HealthScoreCard from '../components/cards/HealthScoreCard';
+import RecentAlertsCard from '../components/cards/RecentAlertsCard';
+import ActivityLogCard from '../components/cards/ActivityLogCard';
 
 // Charts
 import CpuChart     from '../components/charts/CpuChart';
@@ -64,7 +67,7 @@ const Dashboard = () => {
           </div>
 
           {/* ── Top Stats Row ───────────────────────────────────────── */}
-          <div className="stats-grid">
+          <div className="stats-grid" id="metrics-grid">
             <MetricCard
               label="CPU Usage"
               value={toFixed(cpuUsage)}
@@ -125,6 +128,12 @@ const Dashboard = () => {
             />
           </div>
 
+          {/* ── Health Score ────────────────────────────────────────── */}
+          <p className="section-title" id="health-score">Health Score</p>
+          <div className="health-score-row">
+            <HealthScoreCard />
+          </div>
+
           {/* ── Charts ─────────────────────────────────────────────── */}
           <p className="section-title">Performance Charts</p>
           <div className="charts-grid">
@@ -134,7 +143,7 @@ const Dashboard = () => {
             <NetworkChart />
           </div>
 
-          {/* ── Bottom Row ─────────────────────────────────────────── */}
+          {/* ── System Details ──────────────────────────────────────── */}
           <p className="section-title">System Details</p>
           <div className="bottom-grid">
             <UptimeCard />
@@ -142,8 +151,15 @@ const Dashboard = () => {
             <SystemLoadCard />
           </div>
 
+          {/* ── Alerts + Activity ───────────────────────────────────── */}
+          <p className="section-title" id="recent-alerts">Alerts & Activity</p>
+          <div className="alerts-activity-grid">
+            <RecentAlertsCard />
+            <ActivityLogCard />
+          </div>
+
           {/* ── Services ───────────────────────────────────────────── */}
-          <p className="section-title">Running Services</p>
+          <p className="section-title" id="services">Running Services</p>
           <ServicesCard />
         </main>
       </div>

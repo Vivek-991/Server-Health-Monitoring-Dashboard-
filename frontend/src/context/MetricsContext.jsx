@@ -7,7 +7,7 @@ import React, {
   useCallback,
 } from 'react';
 import { io } from 'socket.io-client';
-import { fetchLiveMetrics } from '../api/metricsApi';
+import { fetchLiveMetrics, fetchAgentServers } from '../api/metricsApi';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000';
@@ -15,8 +15,9 @@ const MAX_HISTORY = 60; // keep last 60 data points for charts
 
 // ── Initial State ─────────────────────────────────────────────────────────────
 const initialState = {
-  current: null,         // latest MetricSnapshot
+  current: null,         // latest MetricSnapshot for localhost
   history: [],           // array of MetricSnapshots (for charts)
+  agents: {},            // remote server metrics mapped by serverId
   connected: false,      // Socket.IO connection status
   loading: true,
   error: null,
@@ -57,6 +58,14 @@ const metricsReducer = (state, action) => {
         error: null,
       };
 
+    case 'SET_AGENTS':
+      return {
+        ...state,
+        agents: action.payload,
+        loading: false,
+        error: null,
+      };
+
     default:
       return state;
   }
@@ -72,8 +81,16 @@ export const MetricsProvider = ({ children }) => {
   // REST fallback — get first snapshot immediately
   const loadInitialMetrics = useCallback(async () => {
     try {
-      const res = await fetchLiveMetrics();
-      dispatch({ type: 'SET_INITIAL_METRICS', payload: res.data });
+      const [liveRes, agentsRes] = await Promise.all([
+        fetchLiveMetrics(),
+        fetchAgentServers().catch(() => ({ success: false, agents: {} }))
+      ]);
+      
+      dispatch({ type: 'SET_INITIAL_METRICS', payload: liveRes.data });
+      
+      if (agentsRes.success && agentsRes.agents) {
+        dispatch({ type: 'SET_AGENTS', payload: agentsRes.agents });
+      }
     } catch (err) {
       dispatch({ type: 'SET_ERROR', payload: err.message });
     }
@@ -107,6 +124,10 @@ export const MetricsProvider = ({ children }) => {
 
     socket.on('metrics:update', (data) => {
       dispatch({ type: 'SET_METRICS', payload: data });
+    });
+
+    socket.on('metrics:update:agents', (data) => {
+      dispatch({ type: 'SET_AGENTS', payload: data });
     });
 
     socket.on('metrics:error', (err) => {

@@ -80,9 +80,16 @@ const collectMetrics = async () => {
     max: temp.max ?? null,
   };
 
+
   // ── Load ─────────────────────────────────────────────────────────────────
+  let avgLoad = cpuLoad.avgLoad;
+  if (!avgLoad || avgLoad <= 0) {
+    // Windows fallback: CPU usage factor * cores
+    avgLoad = (cpuLoad.currentLoad / 100) * cpu.cores;
+  }
+
   const load = {
-    avgLoad: parseFloat((cpuLoad.avgLoad || 0).toFixed(2)),
+    avgLoad: parseFloat(avgLoad.toFixed(2)),
     currentLoad: parseFloat(cpuLoad.currentLoad.toFixed(2)),
   };
 

@@ -3,13 +3,14 @@
 
 /* ── Design Tokens ─────────────────────────────────────────────────────────── */
 :root {
-  /* Colors */
-  --color-bg-primary:    #0a0e1a;
-  --color-bg-secondary:  #0f1628;
-  --color-bg-card:       #141c2e;
-  --color-bg-card-hover: #1a2438;
-  --color-border:        rgba(99, 132, 255, 0.12);
-  --color-border-strong: rgba(99, 132, 255, 0.25);
+  /* Colors — Dark (pure black) */
+  --color-bg-primary:    #000000;
+  --color-bg-secondary:  #0a0a0a;
+  --color-bg-card:       #111111;
+  --color-bg-card-hover: #1a1a1a;
+  --color-border:        rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.15);
+
 
   --color-accent-blue:   #6384ff;
   --color-accent-cyan:   #00d4ff;
@@ -20,9 +21,9 @@
   --color-accent-pink:   #ec4899;
   --color-accent-orange: #f97316;
 
-  --color-text-primary:   #e8eaf6;
-  --color-text-secondary: #8892b0;
-  --color-text-muted:     #4a5568;
+  --color-text-primary:   #f0f0f0;
+  --color-text-secondary: #888888;
+  --color-text-muted:     #444444;
 
   /* Status */
   --color-status-online:  #22c55e;
@@ -68,9 +69,9 @@
   --radius-full: 9999px;
 
   /* Shadows */
-  --shadow-card:  0 4px 24px rgba(0, 0, 0, 0.4);
-  --shadow-glow:  0 0 24px rgba(99, 132, 255, 0.15);
-  --shadow-hover: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-card:  0 4px 24px rgba(0, 0, 0, 0.6);
+  --shadow-glow:  0 0 24px rgba(255, 255, 255, 0.04);
+  --shadow-hover: 0 8px 32px rgba(0, 0, 0, 0.8);
 
   /* Transitions */
   --transition-fast:   150ms ease;
@@ -80,6 +81,28 @@
   /* Sidebar */
   --sidebar-width: 240px;
   --navbar-height: 64px;
+}
+
+/* ── Light Theme Overrides ──────────────────────────────────────────────────── */
+[data-theme="light"] {
+  --color-bg-primary:    #f0f4ff;
+  --color-bg-secondary:  #e6ecf8;
+  --color-bg-card:       #ffffff;
+  --color-bg-card-hover: #f5f8ff;
+  --color-border:        rgba(99, 132, 255, 0.18);
+  --color-border-strong: rgba(99, 132, 255, 0.35);
+
+  --color-text-primary:   #1a1f36;
+  --color-text-secondary: #4a5578;
+  --color-text-muted:     #8892b0;
+
+  --shadow-card:  0 4px 24px rgba(99, 132, 255, 0.08);
+  --shadow-glow:  0 0 24px rgba(99, 132, 255, 0.12);
+  --shadow-hover: 0 8px 32px rgba(99, 132, 255, 0.15);
+
+  /* Component-specific overrides */
+  --navbar-bg: rgba(240, 244, 255, 0.88);
+  --progress-track-bg: rgba(0, 0, 0, 0.07);
 }
 
 /* ── Reset & Base ───────────────────────────────────────────────────────────── */
@@ -104,6 +127,7 @@ body {
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color var(--transition-base), color var(--transition-base);
 }
 
 /* Scrollbar */

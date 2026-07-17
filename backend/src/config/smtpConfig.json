@@ -1,0 +1,8 @@
+{
+  "host": "",
+  "port": 587,
+  "user": "",
+  "pass": "",
+  "from": "",
+  "to": "cloudpredator.ai@gmail.com"
+}

@@ -4,6 +4,8 @@ const {
   getLiveMetrics,
   getHistoricalMetrics,
   getServerStatus,
+  pushAgentMetrics,
+  getAgentServers,
 } = require('../controllers/metricsController');
 
 // @route   GET /api/metrics/live
@@ -20,5 +22,16 @@ router.get('/history', getHistoricalMetrics);
 // @desc    Quick server health check
 // @access  Public
 router.get('/status', getServerStatus);
+
+// @route   POST /api/metrics/push
+// @desc    Push metrics from remote server agents
+// @access  Public
+router.post('/push', pushAgentMetrics);
+
+// @route   GET /api/metrics/agents
+// @desc    Get all current active remote server agents
+// @access  Public
+router.get('/agents', getAgentServers);
+
 
 module.exports = router;

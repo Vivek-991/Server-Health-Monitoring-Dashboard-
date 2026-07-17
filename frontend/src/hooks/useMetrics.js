@@ -5,13 +5,17 @@ import { useMetricsContext } from '../context/MetricsContext';
  * Keeps components decoupled from the context implementation.
  */
 const useMetrics = () => {
-  const { current, history, connected, loading, error } = useMetricsContext();
+  const { current, history, agents, connected, loading, error } = useMetricsContext();
 
   return {
     // Connection
     connected,
     loading,
     error,
+
+    // All active remote server agents
+    agents: agents || {},
+
 
     // CPU
     cpuUsage: current?.cpu?.usage ?? null,

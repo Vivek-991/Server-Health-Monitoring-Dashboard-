@@ -35,4 +35,17 @@ export const fetchHistoricalMetrics = (limit = 60) =>
  */
 export const fetchServerStatus = () => apiClient.get('/metrics/status');
 
+/**
+ * Fetch and update SMTP settings configurations
+ */
+export const fetchSmtpSettings = () => apiClient.get('/smtp');
+export const updateSmtpSettings = (config) => apiClient.post('/smtp', config);
+
+/**
+ * Fetch all active remote server agents
+ */
+export const fetchAgentServers = () => apiClient.get('/metrics/agents');
+
 export default apiClient;
+
+

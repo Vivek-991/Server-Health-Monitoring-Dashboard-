@@ -67,14 +67,15 @@ const SystemLoadCard = () => {
             style={{
               width: '20px', height: '20px',
               borderRadius: '4px',
-              background: currentLoad / cpuCores > (i + 1) / cpuCores * cpuCores
-                ? 'rgba(99,132,255,0.6)'
+              background: currentLoad >= (i / Math.min(cpuCores, 16)) * 100
+                ? 'rgba(99, 132, 255, 0.65)'
                 : 'var(--color-bg-secondary)',
               border: '1px solid var(--color-border)',
               transition: 'background 0.3s ease',
             }}
           />
         ))}
+
         <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', alignSelf: 'center' }}>
           {cpuCores} cores
         </span>
