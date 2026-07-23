@@ -39,5 +39,9 @@ router.get('/agents', getAgentServers);
 // @access  Public
 router.delete('/agents/:serverId', removeAgentServer);
 
+// @route   DELETE /api/metrics/agents
+// @desc    Remove all active remote server agents
+// @access  Public
+router.delete('/agents', removeAllAgentServers);
 
 module.exports = router;

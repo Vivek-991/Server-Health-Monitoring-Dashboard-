@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import PageLayout from '../components/common/PageLayout';
 import useMetrics from '../hooks/useMetrics';
 import { computeHealthScore } from '../utils/healthScore';
-import { deleteAgentServer } from '../api/metricsApi';
+import { deleteAgentServer, deleteAllAgentServers } from '../api/metricsApi';
 
-// ── Fallback Demo Servers if no agents exist ───────────────────────────────
+// ── Score Color ─────────────────────────────────────────────────────────────
 const scoreColor = (s) =>
   s >= 80 ? '#22c55e' : s >= 65 ? '#f59e0b' : s >= 50 ? '#f97316' : '#ef4444';
 
@@ -48,45 +48,43 @@ const ServerCard = ({ server, onClick, onRemove }) => {
         transition: 'opacity 0.3s ease'
       }}
     >
-      {server.isAgent && (
-        <button
-          className="srv-remove-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove(server.id);
-          }}
-          title={`Delete ${server.name}`}
-          style={{
-            position: 'absolute',
-            top: '12px',
-            right: '12px',
-            background: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.2)',
-            color: '#ef4444',
-            cursor: 'pointer',
-            fontSize: 'var(--text-xs)',
-            fontWeight: '600',
-            zIndex: 10,
-            padding: '4px 8px',
-            borderRadius: 'var(--radius-sm)',
-            transition: 'all 0.2s ease',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#ef4444';
-            e.currentTarget.style.color = '#ffffff';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
-            e.currentTarget.style.color = '#ef4444';
-          }}
-        >
-          🗑️ Delete
-        </button>
-      )}
-      <div className="srv-card-top" style={{ paddingRight: server.isAgent ? '80px' : '0' }}>
+      <button
+        className="srv-remove-btn"
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove(server.id);
+        }}
+        title={`Delete ${server.name}`}
+        style={{
+          position: 'absolute',
+          top: '12px',
+          right: '12px',
+          background: 'rgba(239, 68, 68, 0.1)',
+          border: '1px solid rgba(239, 68, 68, 0.2)',
+          color: '#ef4444',
+          cursor: 'pointer',
+          fontSize: 'var(--text-xs)',
+          fontWeight: '600',
+          zIndex: 10,
+          padding: '4px 8px',
+          borderRadius: 'var(--radius-sm)',
+          transition: 'all 0.2s ease',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = '#ef4444';
+          e.currentTarget.style.color = '#ffffff';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+          e.currentTarget.style.color = '#ef4444';
+        }}
+      >
+        🗑️ Delete
+      </button>
+      <div className="srv-card-top" style={{ paddingRight: '80px' }}>
         <div className="srv-card-info">
           <div className="srv-card-name">{server.name}</div>
           <div className="srv-card-hostname">{server.hostname} · {server.ip}</div>
@@ -158,33 +156,18 @@ const ServersPage = () => {
     }
   };
 
-  // Build real server entry from live data
-  const realScore = useMemo(() => {
-    if (!current) return 0;
-    return computeHealthScore(current).score;
-  }, [current]);
+  const handleRemoveAllServers = async () => {
+    const confirmRemove = window.confirm(
+      'Are you sure you want to remove ALL servers from the monitoring list?'
+    );
+    if (!confirmRemove) return;
 
-  const realServer = useMemo(() => {
-    const isCloudHost = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-    const serverDisplayName = isCloudHost ? `Primary Server (${window.location.hostname})` : 'Primary Server (Central)';
-    return {
-      id: 'local',
-      name: serverDisplayName,
-      hostname: current?.hostname || window.location.hostname,
-      ip: current?.ip || (isCloudHost ? window.location.hostname : '127.0.0.1'),
-      os: current?.os?.distro || 'Cloud OS',
-      role: 'Central Dashboard Host',
-      cpu:  Math.round(current?.cpu?.usage ?? 0),
-      ram:  Math.round(current?.memory?.usagePercent ?? 0),
-      disk: Math.round(current?.disks?.[0]?.usagePercent ?? 0),
-      temp: Math.round(current?.temperatures?.[0]?.main ?? 40),
-      uptime: current?.os ? formatUptime(current.os.uptime) : '—',
-      status: realScore >= 80 ? 'online' : realScore >= 60 ? 'warning' : 'critical',
-      services: current?.services?.length ?? 0,
-      score: realScore,
-      isLive: true,
-    };
-  }, [current, realScore]);
+    try {
+      await deleteAllAgentServers();
+    } catch (err) {
+      alert(`Failed to remove servers: ${err.message}`);
+    }
+  };
 
   // Convert active agent metrics map to server list
   const remoteServers = useMemo(() => {
@@ -211,12 +194,10 @@ const ServersPage = () => {
     });
   }, [agents]);
 
+  // Display only active reporting agent servers (0 servers by default until an agent connects)
   const allServers = useMemo(() => {
-    return [
-      realServer,
-      ...remoteServers,
-    ];
-  }, [realServer, remoteServers]);
+    return remoteServers;
+  }, [remoteServers]);
 
   const filters = ['all', 'online', 'warning', 'critical'];
   const displayed = filter === 'all' ? allServers : allServers.filter((s) => s.status === filter || (filter === 'warning' && s.status === 'warning'));
@@ -235,13 +216,35 @@ const ServersPage = () => {
           <h1 className="page-title">🖥️ Servers</h1>
           <p className="page-sub">{allServers.length} monitored servers · {counts.online} online · {counts.warning} degraded · {counts.critical} critical</p>
         </div>
-        <button 
-          className="btn-primary" 
-          onClick={() => setShowAddModal(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', fontSize: 'var(--text-sm)' }}
-        >
-          ➕ Add Server
-        </button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          {allServers.length > 0 && (
+            <button 
+              onClick={handleRemoveAllServers}
+              style={{
+                background: 'rgba(239, 68, 68, 0.15)',
+                color: '#ef4444',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                padding: '10px 16px',
+                borderRadius: 'var(--radius-md)',
+                fontWeight: '600',
+                fontSize: 'var(--text-sm)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              🗑️ Clear All
+            </button>
+          )}
+          <button 
+            className="btn-primary" 
+            onClick={() => setShowAddModal(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', fontSize: 'var(--text-sm)' }}
+          >
+            ➕ Add Server
+          </button>
+        </div>
       </div>
 
       {/* Filter tabs */}
@@ -255,11 +258,35 @@ const ServersPage = () => {
       </div>
 
       {/* Server grid */}
-      <div className="srv-grid">
-        {displayed.map((s) => (
-          <ServerCard key={s.id} server={s} onClick={() => navigate(`/servers/${s.id}`)} onRemove={handleRemoveServer} />
-        ))}
-      </div>
+      {displayed.length === 0 ? (
+        <div style={{
+          textAlign: 'center',
+          padding: '60px 20px',
+          background: 'var(--color-bg-secondary)',
+          borderRadius: 'var(--radius-xl)',
+          border: '1px border var(--color-border)',
+          margin: '24px 0'
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🖥️</div>
+          <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, marginBottom: '8px' }}>No Monitored Servers Connected</h3>
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)', maxWidth: '450px', margin: '0 auto 20px' }}>
+            There are currently no active servers being monitored. Click below to get the command and connect your first server.
+          </p>
+          <button 
+            className="btn-primary" 
+            onClick={() => setShowAddModal(true)}
+            style={{ padding: '10px 20px', fontSize: 'var(--text-sm)' }}
+          >
+            ➕ Add Your First Server
+          </button>
+        </div>
+      ) : (
+        <div className="srv-grid">
+          {displayed.map((s) => (
+            <ServerCard key={s.id} server={s} onClick={() => navigate(`/servers/${s.id}`)} onRemove={handleRemoveServer} />
+          ))}
+        </div>
+      )}
 
       {/* Add Server Modal */}
       {showAddModal && (

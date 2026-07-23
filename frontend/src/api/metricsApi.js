@@ -66,6 +66,11 @@ export const fetchAgentServers = () => apiClient.get('/metrics/agents');
  */
 export const deleteAgentServer = (serverId) => apiClient.delete(`/metrics/agents/${serverId}`);
 
+/**
+ * Remove all active remote server agents
+ */
+export const deleteAllAgentServers = () => apiClient.delete('/metrics/agents');
+
 export default apiClient;
 
 

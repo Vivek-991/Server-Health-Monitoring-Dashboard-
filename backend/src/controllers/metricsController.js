@@ -136,6 +136,28 @@ const removeAgentServer = async (req, res, next) => {
   }
 };
 
+/**
+ * DELETE /api/metrics/agents
+ * Removes all active server agents.
+ */
+const removeAllAgentServers = async (req, res, next) => {
+  try {
+    Object.keys(activeAgents).forEach((key) => {
+      delete activeAgents[key];
+    });
+
+    const io = req.app.get('socketio');
+    if (io) {
+      io.emit('metrics:update:agents', activeAgents);
+    }
+
+    return res.status(200).json({ success: true, message: 'All active servers removed successfully.' });
+  } catch (error) {
+    logger.error('removeAllAgentServers error:', error);
+    next(error);
+  }
+};
+
 module.exports = {
   getLiveMetrics,
   getHistoricalMetrics,
@@ -143,5 +165,6 @@ module.exports = {
   pushAgentMetrics,
   getAgentServers,
   removeAgentServer,
+  removeAllAgentServers,
   activeAgents
 };
