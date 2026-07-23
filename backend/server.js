@@ -66,15 +66,27 @@ app.use('/api/metrics', metricsRoutes);
 app.use('/api/smtp', smtpRoutes);
 
 
-// Root health ping
-app.get('/', (_req, res) => {
-  res.json({ message: 'Server Health API is running 🚀', timestamp: new Date() });
-});
-
 // Serve the agent.py script for client downloads
 app.get('/agent.py', (_req, res) => {
   res.download(path.join(__dirname, 'agent.py'), 'agent.py');
 });
+
+// Serve frontend production build if available
+const fs = require('fs');
+const frontendBuildPath = path.join(__dirname, '../frontend/build');
+if (fs.existsSync(frontendBuildPath)) {
+  app.use(express.static(frontendBuildPath));
+  app.get('*', (req, res, next) => {
+    if (req.originalUrl.startsWith('/api') || req.originalUrl === '/agent.py') {
+      return next();
+    }
+    res.sendFile(path.join(frontendBuildPath, 'index.html'));
+  });
+} else {
+  app.get('/', (_req, res) => {
+    res.json({ message: 'Server Health API is running 🚀', timestamp: new Date() });
+  });
+}
 
 // 404 handler
 app.use((_req, res) => {
