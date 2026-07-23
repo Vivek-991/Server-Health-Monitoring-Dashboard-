@@ -4,12 +4,7 @@ import PageLayout from '../components/common/PageLayout';
 import useMetrics from '../hooks/useMetrics';
 import { computeHealthScore } from '../utils/healthScore';
 import { formatBytes, formatBandwidth } from '../utils/formatters';
-
-// ── Same demo data as ServersPage ─────────────────────────────────────────────
-const DEMO_SERVERS = {
-  'web-01':    { id:'web-01',    name:'web-01',    hostname:'web-01.prod',    ip:'10.0.1.11', os:'Ubuntu 22.04', role:'Web Server', cpu:42, ram:61, disk:54, temp:48, uptime:'14d 6h',  status:'online',   services:[{name:'nginx',status:'running'},{name:'node',status:'running'},{name:'ssh',status:'running'}] },
-  'db-01':     { id:'db-01',     name:'db-01',     hostname:'db-01.prod',     ip:'10.0.1.20', os:'CentOS 8',    role:'Database',   cpu:67, ram:78, disk:71, temp:62, uptime:'32d 1h',  status:'warning',  services:[{name:'postgres',status:'running'},{name:'redis',status:'running'},{name:'ssh',status:'running'}] },
-};
+import { deleteAgentServer } from '../api/metricsApi';
 
 // ── Helper components ─────────────────────────────────────────────────────────
 const MetricBar = ({ label, value, max = 100, unit = '%', color }) => {
@@ -144,59 +139,6 @@ const LiveServerDetail = ({ current }) => {
   );
 };
 
-// ── Demo server detail ─────────────────────────────────────────────────────────
-const DemoServerDetail = ({ server }) => {
-  const statusColor = server.status === 'online' ? '#22c55e' : server.status === 'warning' ? '#f59e0b' : '#ef4444';
-  const score = Math.round(100 - server.cpu*0.25 - server.ram*0.25 - server.disk*0.2 - Math.max(0, server.temp - 40)*0.5);
-  const grade = score >= 90 ? 'A+' : score >= 80 ? 'A' : score >= 70 ? 'B' : score >= 60 ? 'C' : 'D';
-
-  return (
-    <>
-      <div className="detail-hero">
-        <div className="detail-score-block">
-          <div className="detail-score-num" style={{ color: statusColor }}>{score}</div>
-          <div className="detail-score-grade" style={{ color: statusColor }}>{grade}</div>
-          <div className="detail-score-label">Health Score</div>
-        </div>
-        <InfoGrid items={[
-          ['Hostname',  server.hostname],
-          ['IP Address',server.ip],
-          ['OS',        server.os],
-          ['Role',      server.role],
-          ['Uptime',    server.uptime],
-          ['Services',  `${server.services.length} tracked`],
-        ]} />
-      </div>
-
-      <div className="detail-grid">
-        <Section title="CPU" icon="🖥️">
-          <MetricBar label="Usage" value={server.cpu} />
-        </Section>
-        <Section title="Memory" icon="💾">
-          <MetricBar label="Used" value={server.ram} />
-        </Section>
-        <Section title="Disk" icon="💿">
-          <MetricBar label="/" value={server.disk} />
-        </Section>
-        <Section title="Temperature" icon="🌡️">
-          <MetricBar label="CPU Temp" value={server.temp} max={100} unit="°C" />
-        </Section>
-        <Section title="Services" icon="⚙️">
-          <div className="services-list">
-            {server.services.map((s) => (
-              <div key={s.name} className="service-row">
-                <span className={`service-dot ${s.status}`} />
-                <span className="service-name">{s.name}</span>
-                <span className={`service-status ${s.status}`}>{s.status}</span>
-              </div>
-            ))}
-          </div>
-        </Section>
-      </div>
-    </>
-  );
-};
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 const ServerDetailPage = () => {
   const { id } = useParams();
@@ -205,28 +147,42 @@ const ServerDetailPage = () => {
 
   const isLocal = id === 'local';
   const agentMetrics = agents[id];
-  const demo = DEMO_SERVERS[id];
 
-  if (!isLocal && !agentMetrics && !demo) {
+  if (!isLocal && !agentMetrics) {
     return (
       <PageLayout>
-        <div className="page-header">
-          <button className="btn-ghost" onClick={() => navigate('/servers')}>← Back</button>
+        <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h1 className="page-title">Server Not Found</h1>
+          <button className="btn-ghost" onClick={() => navigate('/servers')}>← Back to Servers</button>
         </div>
-        <div className="empty-state">Server not found.</div>
+        <div className="empty-state" style={{ marginTop: '32px', textAlign: 'center' }}>
+          This server is not registered or has been removed.
+        </div>
       </PageLayout>
     );
   }
 
   const name = isLocal 
     ? 'localhost (Live)' 
-    : agentMetrics 
-      ? `${agentMetrics.name || id}`
-      : demo.name;
+    : `${agentMetrics.name || id}`;
+
+  const handleDeleteServer = async () => {
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete server "${name}"?\n\nThis will remove it from the monitoring dashboard. Make sure to stop the agent.py script running on that server so it does not reconnect.`
+    );
+    if (!confirmDelete) return;
+
+    try {
+      await deleteAgentServer(id);
+      navigate('/servers');
+    } catch (err) {
+      alert(`Failed to delete server: ${err.message}`);
+    }
+  };
 
   return (
     <PageLayout>
-      <div className="page-header">
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
         <div>
           <div className="breadcrumb">
             <button className="breadcrumb-btn" onClick={() => navigate('/servers')}>Servers</button>
@@ -251,7 +207,39 @@ const ServerDetailPage = () => {
           </div>
           <h1 className="page-title">{name}</h1>
         </div>
-        <button className="btn-ghost" onClick={() => navigate('/servers')}>← Back to Servers</button>
+
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          {!isLocal && (
+            <button
+              onClick={handleDeleteServer}
+              style={{
+                background: 'rgba(239, 68, 68, 0.15)',
+                color: '#ef4444',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                padding: '8px 16px',
+                borderRadius: 'var(--radius-md)',
+                fontWeight: '600',
+                fontSize: 'var(--text-sm)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#ef4444';
+                e.currentTarget.style.color = '#ffffff';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
+                e.currentTarget.style.color = '#ef4444';
+              }}
+            >
+              🗑️ Delete Server
+            </button>
+          )}
+          <button className="btn-ghost" onClick={() => navigate('/servers')}>← Back to Servers</button>
+        </div>
       </div>
 
       {isLocal && <LiveServerDetail current={localCurrent} />}
@@ -282,7 +270,6 @@ const ServerDetailPage = () => {
           </div>
         </>
       )}
-      {!isLocal && !agentMetrics && demo && <DemoServerDetail server={demo} />}
     </PageLayout>
   );
 };
@@ -294,3 +281,4 @@ const formatUptime = (s) => {
 };
 
 export default ServerDetailPage;
+

@@ -6,16 +6,6 @@ import { computeHealthScore } from '../utils/healthScore';
 import { deleteAgentServer } from '../api/metricsApi';
 
 // ── Fallback Demo Servers if no agents exist ───────────────────────────────
-const DEMO_SERVERS = [
-  { id: 'web-01', name: 'web-01', hostname: 'web-01.prod', ip: '10.0.1.11', os: 'Ubuntu 22.04', role: 'Web Server', cpu: 42, ram: 61, disk: 54, temp: 48, uptime: '14d 6h', status: 'online',   services: 8 },
-  { id: 'db-01',  name: 'db-01',  hostname: 'db-01.prod',  ip: '10.0.1.20', os: 'CentOS 8',    role: 'Database',   cpu: 67, ram: 78, disk: 71, temp: 62, uptime: '32d 1h', status: 'warning',  services: 5 },
-];
-
-const fakeScore = ({ cpu, ram, disk, temp }) => {
-  const s = 100 - cpu * 0.25 - ram * 0.25 - disk * 0.2 - Math.max(0, (temp || 40) - 40) * 0.5;
-  return Math.round(Math.max(0, Math.min(100, s)));
-};
-
 const scoreColor = (s) =>
   s >= 80 ? '#22c55e' : s >= 65 ? '#f59e0b' : s >= 50 ? '#f97316' : '#ef4444';
 
@@ -65,35 +55,38 @@ const ServerCard = ({ server, onClick, onRemove }) => {
             e.stopPropagation();
             onRemove(server.id);
           }}
-          title={`Remove ${server.name}`}
+          title={`Delete ${server.name}`}
           style={{
             position: 'absolute',
             top: '12px',
             right: '12px',
-            background: 'none',
-            border: 'none',
-            color: 'var(--color-text-muted)',
+            background: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.2)',
+            color: '#ef4444',
             cursor: 'pointer',
-            fontSize: 'var(--text-base)',
+            fontSize: 'var(--text-xs)',
+            fontWeight: '600',
             zIndex: 10,
-            padding: '4px',
-            borderRadius: '4px',
+            padding: '4px 8px',
+            borderRadius: 'var(--radius-sm)',
             transition: 'all 0.2s ease',
-            lineHeight: 1
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.color = '#ef4444';
-            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+            e.currentTarget.style.background = '#ef4444';
+            e.currentTarget.style.color = '#ffffff';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.color = 'var(--color-text-muted)';
-            e.currentTarget.style.background = 'none';
+            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+            e.currentTarget.style.color = '#ef4444';
           }}
         >
-          🗑️
+          🗑️ Delete
         </button>
       )}
-      <div className="srv-card-top" style={{ paddingRight: server.isAgent ? '24px' : '0' }}>
+      <div className="srv-card-top" style={{ paddingRight: server.isAgent ? '80px' : '0' }}>
         <div className="srv-card-info">
           <div className="srv-card-name">{server.name}</div>
           <div className="srv-card-hostname">{server.hostname} · {server.ip}</div>
@@ -154,7 +147,7 @@ const ServersPage = () => {
 
   const handleRemoveServer = async (serverId) => {
     const confirmRemove = window.confirm(
-      `Are you sure you want to remove this server ("${serverId}")?\n\nIMPORTANT: Make sure to stop the agent.py script running on that machine first, or it will automatically reconnect and reappear within 5 seconds!`
+      `Are you sure you want to delete server "${serverId}"?\n\nThis will remove it from the dashboard. Make sure to stop the agent.py script running on that server so it does not reconnect.`
     );
     if (!confirmRemove) return;
 
@@ -196,11 +189,8 @@ const ServersPage = () => {
     return Object.keys(agents).map((key) => {
       const ag = agents[key];
       const isOffline = ag.status === 'offline';
-      const score = isOffline ? 0 : fakeScore({
-        cpu: ag.cpu?.usage ?? 0,
-        ram: ag.memory?.usagePercent ?? 0,
-        disk: ag.disks?.[0]?.usagePercent ?? 0
-      });
+      const rawScore = computeHealthScore(ag).score;
+      const score = isOffline ? 0 : rawScore;
       return {
         id: ag.id || key,
         name: ag.name || key,
@@ -220,12 +210,9 @@ const ServersPage = () => {
   }, [agents]);
 
   const allServers = useMemo(() => {
-    // If no agents are connected, keep the demo servers visible so the UI looks complete
-    const showDemo = remoteServers.length === 0;
     return [
       realServer,
       ...remoteServers,
-      ...(showDemo ? DEMO_SERVERS.map((s) => ({ ...s, score: fakeScore(s) })) : [])
     ];
   }, [realServer, remoteServers]);
 
