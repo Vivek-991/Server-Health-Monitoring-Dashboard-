@@ -165,13 +165,15 @@ const ServersPage = () => {
   }, [current]);
 
   const realServer = useMemo(() => {
+    const isCloudHost = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+    const serverDisplayName = isCloudHost ? `Primary Server (${window.location.hostname})` : 'Primary Server (Central)';
     return {
       id: 'local',
-      name: 'localhost',
-      hostname: window.location.hostname,
-      ip: '127.0.0.1',
-      os: current?.os?.distro || 'Local OS',
-      role: 'Primary Monitor',
+      name: serverDisplayName,
+      hostname: current?.hostname || window.location.hostname,
+      ip: current?.ip || (isCloudHost ? window.location.hostname : '127.0.0.1'),
+      os: current?.os?.distro || 'Cloud OS',
+      role: 'Central Dashboard Host',
       cpu:  Math.round(current?.cpu?.usage ?? 0),
       ram:  Math.round(current?.memory?.usagePercent ?? 0),
       disk: Math.round(current?.disks?.[0]?.usagePercent ?? 0),

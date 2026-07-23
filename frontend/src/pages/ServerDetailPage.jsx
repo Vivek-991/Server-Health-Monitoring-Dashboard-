@@ -162,8 +162,9 @@ const ServerDetailPage = () => {
     );
   }
 
+  const isCloudHost = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
   const name = isLocal 
-    ? 'localhost (Live)' 
+    ? (isCloudHost ? `Primary Server (${window.location.hostname})` : 'Primary Server (Central)')
     : `${agentMetrics.name || id}`;
 
   const handleDeleteServer = async () => {
