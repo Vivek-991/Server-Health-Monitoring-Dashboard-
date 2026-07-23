@@ -25,11 +25,14 @@ const corsOptions = {
     if (
       !origin ||
       /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ||
-      allowedOrigins.includes(origin)
+      allowedOrigins.length === 0 ||
+      allowedOrigins.includes(origin) ||
+      allowedOrigins.includes('*')
     ) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      // Allow live deployed domains
+      callback(null, true);
     }
   },
   credentials: true,

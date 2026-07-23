@@ -9,8 +9,21 @@ import React, {
 import { io } from 'socket.io-client';
 import { fetchLiveMetrics, fetchAgentServers } from '../api/metricsApi';
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000';
+const getSocketUrl = () => {
+  if (process.env.REACT_APP_SOCKET_URL) return process.env.REACT_APP_SOCKET_URL;
+  if (typeof window !== 'undefined') {
+    const isLocalhost = Boolean(
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.hostname === '[::1]'
+    );
+    if (isLocalhost) return 'http://localhost:5000';
+    return window.location.origin;
+  }
+  return 'http://localhost:5000';
+};
+
+const SOCKET_URL = getSocketUrl();
 const MAX_HISTORY = 60; // keep last 60 data points for charts
 
 // ── Initial State ─────────────────────────────────────────────────────────────
