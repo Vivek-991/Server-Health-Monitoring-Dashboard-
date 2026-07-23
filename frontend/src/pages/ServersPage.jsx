@@ -122,7 +122,7 @@ const ServerCard = ({ server, onClick, onRemove }) => {
 // ── Page ──────────────────────────────────────────────────────────────────────
 const ServersPage = () => {
   const navigate = useNavigate();
-  const { current, agents } = useMetrics();
+  const { agents } = useMetrics();
   const [filter, setFilter] = useState('all');
 
   // State for Add Server Modal
