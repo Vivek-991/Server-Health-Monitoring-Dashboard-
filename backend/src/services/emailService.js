@@ -105,11 +105,7 @@ const sendEmailAlert = async (subject, text) => {
       const info = await client.sendMail(mailOptions);
       const testUrl = nodemailer.getTestMessageUrl(info);
       if (testUrl) {
-        logger.info('================================================================');
-        logger.warn(`📧 Dynamic Alert Sent to Sandbox!`);
-        logger.warn(`🔗 Click here to preview your styled email:`);
-        logger.warn(`👉 ${testUrl}`);
-        logger.info('================================================================');
+        logger.info(`Sandbox email preview: ${testUrl}`);
       } else {
         logger.info(`Email alert sent: ${info.messageId} to ${toEmail}`);
       }
@@ -119,13 +115,7 @@ const sendEmailAlert = async (subject, text) => {
       return { success: false, error: err.message };
     }
   } else {
-    // Console fallback
-    logger.info('╔════════════════ MOCK EMAIL NOTIFICATION ════════════════╗');
-    logger.info(`║ TO:      ${toEmail}`);
-    logger.info(`║ FROM:    ${fromEmail}`);
-    logger.info(`║ SUBJECT: 🚨 [ALERT] ${subject}`);
-    logger.info(`║ BODY:    ${text}`);
-    logger.info('╚═════════════════════════════════════════════════════════╝');
+    logger.info(`[MOCK EMAIL] To: ${toEmail} | Subject: ${subject}`);
     return { success: true, mock: true };
   }
 };

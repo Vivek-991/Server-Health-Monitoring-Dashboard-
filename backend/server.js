@@ -1,117 +1,79 @@
 require('dotenv').config();
-const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const cors = require('cors');
-const path = require('path');
 
 const connectDB = require('./src/config/db');
-const metricsRoutes = require('./src/routes/metricsRoutes');
-const smtpRoutes = require('./src/routes/smtpRoutes');
+const app = require('./src/app');
 const { initMetricsSocket } = require('./src/sockets/metricsSocket');
-const errorHandler = require('./src/middlewares/errorHandler');
 const logger = require('./src/utils/logger');
 
-// ── Bootstrap ────────────────────────────────────────────────────────────────
-const app = express();
 const httpServer = http.createServer(app);
 
-const corsOptions = {
-  origin: (origin, callback) => {
-    const allowedOrigins = [
-      process.env.CLIENT_URL,
-    ].filter(Boolean);
-
-    if (
-      !origin ||
-      /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ||
-      allowedOrigins.length === 0 ||
-      allowedOrigins.includes(origin) ||
-      allowedOrigins.includes('*')
-    ) {
-      callback(null, true);
-    } else {
-      // Allow live deployed domains
-      callback(null, true);
-    }
-  },
-  credentials: true,
+// ── Socket.IO ─────────────────────────────────────────────────────────────────
+const getAllowedOrigins = () => {
+  const origins = [];
+  if (process.env.NODE_ENV !== 'production') {
+    origins.push('http://localhost:3002');
+    origins.push('http://localhost:3000');
+    origins.push('http://127.0.0.1:3002');
+  }
+  if (process.env.CLIENT_URL) {
+    process.env.CLIENT_URL.split(',').forEach((u) => origins.push(u.trim()));
+  }
+  return origins;
 };
 
 const io = new Server(httpServer, {
-  cors: corsOptions,
+  cors: {
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      const allowed = getAllowedOrigins();
+      if (
+        /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ||
+        allowed.includes(origin) ||
+        process.env.NODE_ENV !== 'production'
+      ) {
+        return callback(null, true);
+      }
+      return callback(new Error(`Socket CORS: origin ${origin} not allowed`), false);
+    },
+    credentials: true,
+    methods: ['GET', 'POST'],
+  },
   pingTimeout: 60000,
+  pingInterval: 25000,
 });
 
 app.set('socketio', io);
 
-
-// ── Connect to MongoDB ───────────────────────────────────────────────────────
+// ── DB + Services ─────────────────────────────────────────────────────────────
 connectDB();
-
-// ── Global Middleware ────────────────────────────────────────────────────────
-app.use(cors(corsOptions));
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Request logger
-app.use((req, _res, next) => {
-  logger.debug(`→ ${req.method} ${req.originalUrl}`);
-  next();
-});
-
-// ── API Routes ───────────────────────────────────────────────────────────────
-app.use('/api/metrics', metricsRoutes);
-app.use('/api/smtp', smtpRoutes);
-
-
-// Serve the agent.py script for client downloads
-app.get('/agent.py', (_req, res) => {
-  res.download(path.join(__dirname, 'agent.py'), 'agent.py');
-});
-
-// Serve frontend production build if available
-const fs = require('fs');
-const frontendBuildPath = path.join(__dirname, '../frontend/build');
-if (fs.existsSync(frontendBuildPath)) {
-  app.use(express.static(frontendBuildPath));
-  app.get('*', (req, res, next) => {
-    if (req.originalUrl.startsWith('/api') || req.originalUrl === '/agent.py') {
-      return next();
-    }
-    res.sendFile(path.join(frontendBuildPath, 'index.html'));
-  });
-} else {
-  app.get('/', (_req, res) => {
-    res.json({ message: 'Server Health API is running 🚀', timestamp: new Date() });
-  });
-}
-
-// 404 handler
-app.use((_req, res) => {
-  res.status(404).json({ success: false, message: 'Route not found' });
-});
-
-// ── Error Handler ────────────────────────────────────────────────────────────
-app.use(errorHandler);
-
-// ── Socket.IO ────────────────────────────────────────────────────────────────
 initMetricsSocket(io);
 
-// Initialize email transporter on boot
 const { initTransporter } = require('./src/services/emailService');
-initTransporter().catch((err) => logger.error('Failed to initialize transporter on boot:', err.message));
+initTransporter().catch((err) => logger.error('Failed to initialize email transporter:', err.message));
 
-// ── Start Server ─────────────────────────────────────────────────────────────
+// ── Listen ────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
-httpServer.listen(PORT, () => {
-  logger.info(`🚀 Server running on http://localhost:${PORT} [${process.env.NODE_ENV}]`);
+
+httpServer.listen(PORT, '0.0.0.0', () => {
+  logger.info(`Server running on http://localhost:${PORT} [${process.env.NODE_ENV || 'development'}]`);
+  logger.info(`Client expected at: ${process.env.CLIENT_URL || 'http://localhost:3002'}`);
 });
 
-// Graceful shutdown
+httpServer.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    logger.error(`❌ Port ${PORT} is already in use.`);
+    logger.error(`   Kill the process with: npx kill-port ${PORT}`);
+    logger.error(`   Or on Windows:  netstat -ano | findstr :${PORT}  then  taskkill /PID <pid> /F`);
+    process.exit(1);
+  } else {
+    throw err;
+  }
+});
+
 process.on('SIGTERM', () => {
-  logger.info('SIGTERM received — shutting down gracefully');
+  logger.info('SIGTERM — shutting down gracefully');
   httpServer.close(() => {
     logger.info('HTTP server closed');
     process.exit(0);

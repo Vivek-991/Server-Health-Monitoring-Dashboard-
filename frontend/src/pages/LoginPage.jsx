@@ -20,14 +20,13 @@ const LoginForm = ({ onSwitch }) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 300));
-    const result = login(fields);
+    const result = await login(fields);
     setLoading(false);
     if (!result.ok) {
       setError(result.error);
     } else {
       addLog('auth', 'User logged in', fields.email);
-      navigate('/', { replace: true }); // redirect to dashboard
+      navigate('/', { replace: true });
     }
   };
 
@@ -110,14 +109,13 @@ const SignupForm = ({ onSwitch }) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 300));
-    const result = signup(fields);
+    const result = await signup(fields);
     setLoading(false);
     if (!result.ok) {
       setError(result.error);
     } else {
       addLog('auth', 'New user registered', fields.email);
-      navigate('/', { replace: true }); // redirect to dashboard
+      navigate('/', { replace: true });
     }
   };
 
@@ -207,11 +205,12 @@ const SignupForm = ({ onSwitch }) => {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 const LoginPage = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
 
-  // Already logged in → go straight to dashboard
+  if (authLoading) return <div className="loader">Loading...</div>;
+
   if (isAuthenticated) {
     navigate('/', { replace: true });
     return null;

@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import useMetrics from '../../hooks/useMetrics';
 import { useTheme } from '../../context/ThemeContext';
 import { useAlerts } from '../../context/AlertsContext';
 import NotificationPanel from './NotificationPanel';
 
 const Navbar = () => {
-  const { connected, status } = useMetrics();
   const { theme, toggleTheme } = useTheme();
   const { unreadCount } = useAlerts();
   const [time, setTime] = useState(new Date());
@@ -72,18 +70,6 @@ const Navbar = () => {
               </span>
             )}
           </button>
-
-          {/* ── Status badge ──────────────────────────────────────── */}
-          <div
-            className="status-badge"
-            style={{ marginLeft: '4px' }}
-            data-status={connected ? (status || 'online') : 'offline'}
-          >
-            <span className={`status-badge ${connected ? 'online' : 'offline'}`}>
-              <span className="status-badge-dot" />
-              {connected ? 'Live' : 'Disconnected'}
-            </span>
-          </div>
         </div>
       </nav>
 

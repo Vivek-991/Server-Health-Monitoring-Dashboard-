@@ -1,106 +1,81 @@
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useReducer,
-  useRef,
-  useCallback,
-} from 'react';
+import React, { createContext, useContext, useEffect, useReducer, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { fetchLiveMetrics, fetchAgentServers } from '../api/metricsApi';
+import { useAuth } from './AuthContext';
 
 const getSocketUrl = () => {
-  if (process.env.REACT_APP_SOCKET_URL) return process.env.REACT_APP_SOCKET_URL;
   if (typeof window !== 'undefined') {
-    const isLocalhost = Boolean(
-      window.location.hostname === 'localhost' ||
-      window.location.hostname === '127.0.0.1' ||
-      window.location.hostname === '[::1]'
-    );
-    if (isLocalhost) return 'http://localhost:5000';
     return window.location.origin;
   }
-  return 'http://localhost:5000';
+  return process.env.REACT_APP_SOCKET_URL || 'http://127.0.0.1:5000';
 };
 
 const SOCKET_URL = getSocketUrl();
-const MAX_HISTORY = 60; // keep last 60 data points for charts
+const MAX_HISTORY = 60;
+const AGENT_OFFLINE_MS = 15000;
 
-// ── Initial State ─────────────────────────────────────────────────────────────
+const getToken = () => localStorage.getItem('shd-token');
+
+const normalizeAgent = (agent) => {
+  const timestamp = agent?.lastSeen || agent?.timestamp;
+  const ageMs = timestamp ? Date.now() - new Date(timestamp).getTime() : Number.POSITIVE_INFINITY;
+  const status = ageMs > AGENT_OFFLINE_MS ? 'offline' : (agent?.status || 'online');
+  return { ...agent, status, lastSeen: agent?.lastSeen || agent?.timestamp || new Date().toISOString() };
+};
+
+const normalizeAgentMap = (agents = {}) =>
+  Object.fromEntries(
+    Object.entries(agents).map(([serverId, agent]) => [serverId, normalizeAgent(agent)])
+  );
+
 const initialState = {
-  current: null,         // latest MetricSnapshot for localhost
-  history: [],           // array of MetricSnapshots (for charts)
-  agents: {},            // remote server metrics mapped by serverId
-  connected: false,      // Socket.IO connection status
+  current: null,
+  history: [],
+  agents: {},
+  connected: false,
   loading: true,
   error: null,
 };
 
-// ── Reducer ───────────────────────────────────────────────────────────────────
 const metricsReducer = (state, action) => {
   switch (action.type) {
     case 'SET_LOADING':
       return { ...state, loading: action.payload };
-
     case 'SET_ERROR':
       return { ...state, error: action.payload, loading: false };
-
+    case 'CLEAR_ERROR':
+      return { ...state, error: null };
     case 'SET_CONNECTED':
       return { ...state, connected: action.payload };
-
     case 'SET_METRICS': {
-      const newHistory = [
-        ...state.history,
-        { ...action.payload, timestamp: new Date() },
-      ].slice(-MAX_HISTORY);
-      return {
-        ...state,
-        current: action.payload,
-        history: newHistory,
-        loading: false,
-        error: null,
-      };
+      const newHistory = [...state.history, { ...action.payload, timestamp: new Date() }].slice(-MAX_HISTORY);
+      return { ...state, current: action.payload, history: newHistory, loading: false, error: null };
     }
-
     case 'SET_INITIAL_METRICS':
-      return {
-        ...state,
-        current: action.payload,
-        history: [{ ...action.payload, timestamp: new Date() }],
-        loading: false,
-        error: null,
-      };
-
+      return { ...state, current: action.payload, history: [{ ...action.payload, timestamp: new Date() }], loading: false, error: null };
     case 'SET_AGENTS':
-      return {
-        ...state,
-        agents: action.payload,
-        loading: false,
-        error: null,
-      };
-
+      return { ...state, agents: normalizeAgentMap(action.payload), loading: false };
+    case 'RESET':
+      return initialState;
     default:
       return state;
   }
 };
 
-// ── Context ───────────────────────────────────────────────────────────────────
 export const MetricsContext = createContext(null);
 
 export const MetricsProvider = ({ children }) => {
+  const { isAuthenticated } = useAuth();
   const [state, dispatch] = useReducer(metricsReducer, initialState);
   const socketRef = useRef(null);
 
-  // REST fallback — get first snapshot immediately
   const loadInitialMetrics = useCallback(async () => {
     try {
       const [liveRes, agentsRes] = await Promise.all([
         fetchLiveMetrics(),
         fetchAgentServers().catch(() => ({ success: false, agents: {} }))
       ]);
-      
       dispatch({ type: 'SET_INITIAL_METRICS', payload: liveRes.data });
-      
       if (agentsRes.success && agentsRes.agents) {
         dispatch({ type: 'SET_AGENTS', payload: agentsRes.agents });
       }
@@ -109,25 +84,30 @@ export const MetricsProvider = ({ children }) => {
     }
   }, []);
 
-  useEffect(() => {
-    // Load initial data via REST
-    loadInitialMetrics();
+  const connectSocket = useCallback(() => {
+    const token = getToken();
+    if (!token) return null;
 
-    // Connect Socket.IO
     const socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
-      reconnectionAttempts: 5,
+      reconnectionAttempts: 10,
       reconnectionDelay: 2000,
+      reconnectionDelayMax: 10000,
+      auth: { token },
     });
 
     socketRef.current = socket;
 
     socket.on('connect', () => {
       dispatch({ type: 'SET_CONNECTED', payload: true });
+      dispatch({ type: 'CLEAR_ERROR' });
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', (reason) => {
       dispatch({ type: 'SET_CONNECTED', payload: false });
+      if (reason === 'io server disconnect') {
+        setTimeout(() => socket.connect(), 2000);
+      }
     });
 
     socket.on('connect_error', (err) => {
@@ -135,22 +115,49 @@ export const MetricsProvider = ({ children }) => {
       dispatch({ type: 'SET_ERROR', payload: `Socket error: ${err.message}` });
     });
 
-    socket.on('metrics:update', (data) => {
-      dispatch({ type: 'SET_METRICS', payload: data });
-    });
+    socket.on('metrics:update', (data) => dispatch({ type: 'SET_METRICS', payload: data }));
+    socket.on('metrics:update:agents', (data) => dispatch({ type: 'SET_AGENTS', payload: data }));
+    socket.on('metrics:error', (err) => dispatch({ type: 'SET_ERROR', payload: err.message }));
 
-    socket.on('metrics:update:agents', (data) => {
-      dispatch({ type: 'SET_AGENTS', payload: data });
-    });
+    return socket;
+  }, []);
 
-    socket.on('metrics:error', (err) => {
-      dispatch({ type: 'SET_ERROR', payload: err.message });
-    });
+  // Socket and Metrics only run when user is authenticated
+  useEffect(() => {
+    if (!isAuthenticated) {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      dispatch({ type: 'RESET' });
+      return;
+    }
+
+    loadInitialMetrics();
+    const socket = connectSocket();
 
     return () => {
-      socket.disconnect();
+      if (socket) socket.disconnect();
+      socketRef.current = null;
     };
-  }, [loadInitialMetrics]);
+  }, [isAuthenticated, loadInitialMetrics, connectSocket]);
+
+  // Re-fetch agent servers when tab becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && isAuthenticated) {
+        fetchAgentServers()
+          .then((res) => {
+            if (res.success && res.agents) {
+              dispatch({ type: 'SET_AGENTS', payload: res.agents });
+            }
+          })
+          .catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isAuthenticated]);
 
   return (
     <MetricsContext.Provider value={{ ...state, dispatch }}>

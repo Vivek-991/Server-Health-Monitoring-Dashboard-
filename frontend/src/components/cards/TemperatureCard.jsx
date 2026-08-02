@@ -10,8 +10,9 @@ const getHeatColor = (temp) => {
   return 'var(--color-healthy)';
 };
 
-const TemperatureCard = () => {
-  const { temperature } = useMetrics();
+const TemperatureCard = ({ temperature: propTemp }) => {
+  const { temperature: contextTemp } = useMetrics();
+  const temperature = propTemp || contextTemp || {};
 
   const mainTemp  = temperature?.main;
   const coreTemps = temperature?.cores || [];
@@ -47,7 +48,7 @@ const TemperatureCard = () => {
                 <span style={{ fontSize: '1.5rem', color: 'var(--color-text-secondary)' }}>°C</span>
               </div>
               <div className="temp-label">CPU Average</div>
-              {maxTemp !== null && (
+              {maxTemp !== null && maxTemp !== undefined && (
                 <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: '4px' }}>
                   Max: {formatTemp(maxTemp)}
                 </div>

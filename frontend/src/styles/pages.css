@@ -28,6 +28,56 @@
   margin-top: 2px;
 }
 
+/* ── Filter Tabs ────────────────────────────────────────────────────────────── */
+.filter-tabs {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-6);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.filter-tab {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  transition: all var(--transition-fast);
+}
+
+.filter-tab:hover {
+  background: var(--color-bg-card-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+}
+
+.filter-tab.active {
+  background: rgba(99, 132, 255, 0.12);
+  color: var(--color-accent-blue);
+  border-color: rgba(99, 132, 255, 0.4);
+}
+
+.filter-tab-count {
+  font-size: var(--text-xs);
+  background: var(--color-bg-secondary);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  color: var(--color-text-muted);
+}
+
+.filter-tab.active .filter-tab-count {
+  background: var(--color-accent-blue);
+  color: #ffffff;
+}
+
 /* ── Buttons & Forms ────────────────────────────────────────────────────────── */
 .btn-primary, .btn-secondary, .btn-ghost {
   display: inline-flex;

@@ -24,7 +24,6 @@ const metricNavItems = [
 ];
 
 const Sidebar = () => {
-  const { connected, cpuModel } = useMetrics();
   const { user, logout } = useAuth();
   const { addLog } = useActivity();
   const { unreadCount } = useAlerts();
@@ -89,14 +88,6 @@ const Sidebar = () => {
 
       {/* Footer — user info + logout */}
       <div className="sidebar-footer">
-        <div className="server-info">
-          <div className={`server-info-dot ${connected ? 'online' : 'offline'}`} />
-          <div className="server-info-text">
-            <strong>{connected ? 'Connected' : 'Offline'}</strong>
-            {cpuModel || 'Local Server'}
-          </div>
-        </div>
-
         {user && (
           <div className="sidebar-user">
             <div className="sidebar-user-avatar">{user.avatar || user.name?.charAt(0)?.toUpperCase()}</div>

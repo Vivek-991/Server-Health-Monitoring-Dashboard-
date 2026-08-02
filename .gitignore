@@ -1,0 +1,31 @@
+# Root .gitignore for Server-Health-Monitoring-Dashboard
+
+# Node dependencies
+node_modules/
+
+# Build artifacts
+dist/
+build/
+.vite/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDEs
+.vscode/
+.idea/
+
+# Python cache
+__pycache__/
+*.pyc

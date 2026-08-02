@@ -1,13 +1,14 @@
 import React from 'react';
 import useMetrics from '../../hooks/useMetrics';
 
-const SystemLoadCard = () => {
-  const { load, cpuCores } = useMetrics();
+const SystemLoadCard = ({ load: propLoad, cpuCores: propCores }) => {
+  const { load: contextLoad, cpuCores: contextCores } = useMetrics();
+  const load = propLoad || contextLoad || {};
+  const cpuCores = propCores || contextCores || 1;
 
   const avgLoad     = load?.avgLoad ?? 0;
   const currentLoad = load?.currentLoad ?? 0;
 
-  // Normalize load average as a percentage relative to core count
   const loadPercent = cpuCores > 0
     ? Math.min((avgLoad / cpuCores) * 100, 100)
     : Math.min(avgLoad * 100, 100);
@@ -52,12 +53,7 @@ const SystemLoadCard = () => {
       </div>
 
       {/* Core count */}
-      <div style={{
-        marginTop: '12px',
-        display: 'flex',
-        gap: '8px',
-        flexWrap: 'wrap',
-      }}>
+      <div style={{ marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
         {Array.from({ length: Math.min(cpuCores, 16) }).map((_, i) => (
           <div
             key={i}

@@ -1,97 +1,82 @@
-const { collectMetrics } = require('../services/systemMetrics');
-const MetricSnapshot = require('../models/MetricSnapshot');
 const logger = require('../utils/logger');
 const { sendEmailAlert } = require('../services/emailService');
-const { activeAgents } = require('../controllers/metricsController');
+const { verifyToken } = require('../middlewares/auth');
+const metricsController = require('../modules/metrics/metrics.controller');
+const { EMIT_INTERVAL_MS, EMAIL_COOLDOWN_MS, AGENT_OFFLINE_MS } = require('../utils/constants');
 
-const EMIT_INTERVAL_MS = 2000; // broadcast every 2 seconds
-const EMAIL_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
-
-let lastCpuAlertTime = 0;
-
-/**
- * Initialise Socket.IO handlers and start the metrics broadcast loop.
- * @param {import('socket.io').Server} io
- */
 const initMetricsSocket = (io) => {
-  const broadcastMetrics = async () => {
+  // ── Optional Socket Auth ───────────────────────────────────────────────────
+  io.use((socket, next) => {
     try {
-      const metrics = await collectMetrics();
-
-      // CPU Threshold alert check
-      if (metrics.cpu && metrics.cpu.usage >= 90) {
-        const now = Date.now();
-        if (now - lastCpuAlertTime > EMAIL_COOLDOWN_MS) {
-          lastCpuAlertTime = now;
-          logger.warn(`CPU alert triggered: ${metrics.cpu.usage}%`);
-          
-          sendEmailAlert(
-            'CPU Usage Critical Alert',
-            `Critical warning: CPU usage is at ${metrics.cpu.usage.toFixed(1)}%, exceeding the critical 90% monitoring threshold.\n\nServer Model: ${metrics.cpu.model || 'Unknown'}\nCores: ${metrics.cpu.cores}\nTimestamp: ${new Date().toISOString()}`
-          ).catch((err) => logger.error('Email alert trigger error:', err.message));
-        }
+      const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+      if (token) {
+        const decoded = verifyToken(token);
+        socket.data.userId = decoded.id;
+      } else {
+        socket.data.userId = null;
       }
+      next();
+    } catch {
+      socket.data.userId = null;
+      next();
+    }
+  });
 
-      // Check for inactive agent servers (timeout after 15 seconds)
-      const TIMEOUT_MS = 15000;
+  // ── Remote Server Agents Monitoring Loop ───────────────────────────────────
+  // Monitors ONLY remote external servers (e.g. AWS EC2, VPS) connected via agent.py.
+  // Local host PC metrics are NOT collected or broadcast.
+  const broadcastAgentMetrics = async () => {
+    try {
       const now = Date.now();
       let agentsChanged = false;
 
-      Object.keys(activeAgents).forEach((serverId) => {
-        const agent = activeAgents[serverId];
+      for (const [serverId, agent] of metricsController.activeAgents) {
+        // Check for agent timeout
         if (agent.status !== 'offline') {
           const lastUpdate = new Date(agent.timestamp).getTime();
-          if (now - lastUpdate > TIMEOUT_MS) {
+          if (now - lastUpdate > AGENT_OFFLINE_MS) {
             agent.status = 'offline';
+            agent.lastSeen = agent.lastSeen || agent.timestamp;
             agentsChanged = true;
-            logger.warn(`Agent "${serverId}" has timed out and is now offline.`);
-            
-            // Send email alert for offline status
+            logger.warn(`Remote server "${serverId}" timed out — marked offline.`);
+
             sendEmailAlert(
               `Server Offline Alert: ${serverId}`,
-              `Warning: The remote monitoring agent on server "${serverId}" (${agent.hostname || 'Unknown'}, IP: ${agent.ip || 'Unknown'}) has stopped sending metrics. It has been marked as OFFLINE.\n\nLast Heartbeat: ${agent.timestamp}\nTimestamp: ${new Date().toISOString()}`
-            ).catch((err) => logger.error(`Email alert trigger error for offline server ${serverId}:`, err.message));
+              `Warning: Remote agent on "${serverId}" (${agent.hostname || 'Unknown'}) stopped sending metrics.\nLast Heartbeat: ${agent.timestamp}`
+            ).catch((err) => logger.error(`Offline alert error for ${serverId}:`, err.message));
           }
         }
-      });
-
-      if (agentsChanged) {
-        io.emit('metrics:update:agents', activeAgents);
       }
 
-      // Persist snapshot to MongoDB (fire-and-forget, non-fatal)
-      try {
-        const mongoose = require('mongoose');
-        if (mongoose.connection.readyState === 1) {
-          MetricSnapshot.create(metrics).catch((err) =>
-            logger.warn('Snapshot save failed:', err.message)
-          );
+      // Always broadcast user-specific remote server updates to authenticated sockets
+      io.sockets.sockets.forEach((socket) => {
+        const userId = socket.data?.userId;
+        if (userId) {
+          socket.emit('metrics:update:agents', metricsController.getAgentsForUser(userId));
         }
-      } catch (_) { /* MongoDB offline – skip persistence */ }
-
-      // Emit to all connected clients
-      io.emit('metrics:update', metrics);
+      });
     } catch (error) {
-      logger.error('Socket broadcast error:', error.message);
-      io.emit('metrics:error', { message: 'Failed to collect metrics' });
+      logger.error('Socket agent broadcast error:', error.message);
     }
   };
 
-  // Start background monitoring loop immediately and run forever
-  const intervalId = setInterval(broadcastMetrics, EMIT_INTERVAL_MS);
-  logger.info('Metrics background monitoring loop started');
+  setInterval(broadcastAgentMetrics, EMIT_INTERVAL_MS);
+  logger.info('Remote server monitoring background loop started (Local host collection disabled)');
 
+  // ── Per-connection handler ────────────────────────────────────────────────
   io.on('connection', (socket) => {
-    logger.info(`Client connected: ${socket.id}`);
+    const userId = socket.data?.userId;
+    logger.info(`Socket connected: ${socket.id} (userId: ${userId || 'anonymous'})`);
 
-    // Send an immediate snapshot on connect
-    broadcastMetrics();
+    // Send this user's remote server agents immediately on connect
+    if (userId) {
+      socket.emit('metrics:update:agents', metricsController.getAgentsForUser(userId));
+    }
 
     socket.on('disconnect', () => {
-      logger.info(`Client disconnected: ${socket.id}`);
+      logger.info(`Socket disconnected: ${socket.id}`);
     });
   });
 };
-
 
 module.exports = { initMetricsSocket };

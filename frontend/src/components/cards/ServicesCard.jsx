@@ -1,8 +1,9 @@
 import React from 'react';
 import useMetrics from '../../hooks/useMetrics';
 
-const ServicesCard = () => {
-  const { services } = useMetrics();
+const ServicesCard = ({ services: propServices }) => {
+  const { services: contextServices } = useMetrics();
+  const services = propServices || contextServices || [];
 
   const running = services.filter((s) => s.running).length;
   const stopped = services.filter((s) => !s.running).length;

@@ -2,19 +2,33 @@ const mongoose = require('mongoose');
 
 const MetricSnapshotSchema = new mongoose.Schema(
   {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      index: true,
+    },
+    server: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Server',
+      index: true,
+    },
+    serverId: {
+      type: String,
+      index: true,
+    },
     timestamp: {
       type: Date,
       default: Date.now,
       index: true,
     },
     cpu: {
-      usage: { type: Number },          // percentage
+      usage: { type: Number },
       cores: { type: Number },
-      speed: { type: Number },          // GHz
+      speed: { type: Number },
       model: { type: String },
     },
     memory: {
-      total: { type: Number },           // bytes
+      total: { type: Number },
       used: { type: Number },
       free: { type: Number },
       usagePercent: { type: Number },
@@ -35,7 +49,7 @@ const MetricSnapshotSchema = new mongoose.Schema(
       tx_sec: { type: Number },
       interface: { type: String },
     },
-    uptime: { type: Number },            // seconds
+    uptime: { type: Number },
     temperature: {
       main: { type: Number },
       cores: [{ type: Number }],
@@ -64,7 +78,8 @@ const MetricSnapshotSchema = new mongoose.Schema(
   }
 );
 
-// Auto-remove snapshots older than 24 hours
 MetricSnapshotSchema.index({ timestamp: 1 }, { expireAfterSeconds: 86400 });
+MetricSnapshotSchema.index({ user: 1, timestamp: -1 });
+MetricSnapshotSchema.index({ server: 1, timestamp: -1 });
 
 module.exports = mongoose.model('MetricSnapshot', MetricSnapshotSchema);

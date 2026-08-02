@@ -1,78 +1,70 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { authApi } from '../api/metricsApi';
 
 export const AuthContext = createContext(null);
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-const STORAGE_KEY = 'shm-user';
+const TOKEN_KEY = 'shd-token';
+const USER_KEY = 'shm-user';
 
-const loadUser = () => {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); }
-  catch { return null; }
-};
+const loadToken = () => localStorage.getItem(TOKEN_KEY);
+const saveToken = (t) => { if (t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY); };
+const loadUser = () => { try { return JSON.parse(localStorage.getItem(USER_KEY)); } catch { return null; } };
+const saveUser = (u) => localStorage.setItem(USER_KEY, JSON.stringify(u));
+const clearAuth = () => { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(USER_KEY); };
 
-const saveUser = (u) => localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
-const clearUser = () => localStorage.removeItem(STORAGE_KEY);
-
-// Very simple "mock" user store (persisted in localStorage)
-const USERS_KEY = 'shm-users';
-const loadUsers = () => { try { return JSON.parse(localStorage.getItem(USERS_KEY)) || []; } catch { return []; } };
-const saveUsers = (users) => localStorage.setItem(USERS_KEY, JSON.stringify(users));
-
-// ── Provider ──────────────────────────────────────────────────────────────────
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(loadUser);
+  const [loading, setLoading] = useState(true);
 
-  // Keep localStorage in sync
   useEffect(() => {
-    if (user) saveUser(user);
-    else clearUser();
-  }, [user]);
-
-  const signup = useCallback(({ name, email, password }) => {
-    if (!name || !email || !password)
-      return { ok: false, error: 'All fields are required.' };
-    if (password.length < 6)
-      return { ok: false, error: 'Password must be at least 6 characters.' };
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-      return { ok: false, error: 'Please enter a valid email address.' };
-
-    const users = loadUsers();
-    if (users.find((u) => u.email.toLowerCase() === email.toLowerCase()))
-      return { ok: false, error: 'An account with this email already exists.' };
-
-    const newUser = {
-      id: Date.now().toString(),
-      name,
-      email,
-      avatar: name.charAt(0).toUpperCase(),
-      createdAt: new Date().toISOString(),
-    };
-    saveUsers([...users, { ...newUser, password }]);
-    setUser(newUser);
-    return { ok: true };
+    const token = loadToken();
+    if (token) {
+      authApi.getMe()
+        .then((res) => {
+          setUser(res.data.user);
+          saveUser(res.data.user);
+        })
+        .catch(() => {
+          clearAuth();
+          setUser(null);
+        })
+        .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
   }, []);
 
-  const login = useCallback(({ email, password }) => {
-    if (!email || !password)
-      return { ok: false, error: 'Email and password are required.' };
+  const signup = useCallback(async ({ name, email, password }) => {
+    try {
+      const res = await authApi.register({ name, email, password });
+      saveToken(res.token);
+      saveUser(res.data.user);
+      setUser(res.data.user);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  }, []);
 
-    const users = loadUsers();
-    const found = users.find(
-      (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-    );
-    if (!found) return { ok: false, error: 'Invalid email or password.' };
-
-    const { password: _pw, ...safeUser } = found;
-    setUser(safeUser);
-    return { ok: true };
+  const login = useCallback(async ({ email, password }) => {
+    try {
+      const res = await authApi.login({ email, password });
+      saveToken(res.token);
+      saveUser(res.data.user);
+      setUser(res.data.user);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
   }, []);
 
   const logout = useCallback(() => {
+    clearAuth();
     setUser(null);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, login, signup, logout, isAuthenticated: !!user, loading }}>
       {children}
     </AuthContext.Provider>
   );

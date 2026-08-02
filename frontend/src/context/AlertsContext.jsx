@@ -8,8 +8,13 @@ const STORAGE_KEY = 'shm-alerts';
 const MAX_ALERTS = 50;
 
 const loadAlerts = () => {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
-  catch { return []; }
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return [];
+    return JSON.parse(saved) || [];
+  } catch {
+    return [];
+  }
 };
 
 // ── Reducer ───────────────────────────────────────────────────────────────────
@@ -38,7 +43,7 @@ const reducer = (state, action) => {
 export const AlertsContext = createContext(null);
 
 export const AlertsProvider = ({ children }) => {
-  const { current } = useMetricsContext();
+  const { current, agents } = useMetricsContext();
   const { settings } = useSettings();
   const [state, dispatch] = useReducer(reducer, { alerts: loadAlerts() });
 
@@ -46,9 +51,39 @@ export const AlertsProvider = ({ children }) => {
   const activeRules = useRef(new Set());
 
   useEffect(() => {
-    if (!current || !settings) return;
+    if (!settings) return;
 
-    // Define rules dynamically inside the hook/effect using the current settings values!
+    // Check remote agent servers for critical status / offline
+    if (agents && typeof agents === 'object') {
+      Object.entries(agents).forEach(([key, ag]) => {
+        if (!ag) return;
+        const ruleId = `agent-status-${key}`;
+        const wasActive = activeRules.current.has(ruleId);
+
+        if (ag.status === 'offline' && !wasActive) {
+          activeRules.current.add(ruleId);
+          dispatch({
+            type: 'ADD_ALERT',
+            payload: {
+              id: `${ruleId}-${Date.now()}`,
+              ruleId,
+              severity: 'critical',
+              title: 'Server Offline',
+              message: `Remote server "${ag.name || key}" stopped sending metrics.`,
+              icon: '🖥️',
+              timestamp: new Date().toISOString(),
+              read: false,
+            },
+          });
+        } else if (ag.status !== 'offline' && wasActive) {
+          activeRules.current.delete(ruleId);
+        }
+      });
+    }
+
+    if (!current) return;
+
+    // Define rules dynamically inside the hook/effect using current settings values
     const dynamicRules = [
       {
         id: 'cpu-critical',
@@ -127,7 +162,6 @@ export const AlertsProvider = ({ children }) => {
       const wasActive = activeRules.current.has(rule.id);
 
       if (triggered && !wasActive) {
-        // Newly triggered
         activeRules.current.add(rule.id);
         dispatch({
           type: 'ADD_ALERT',
@@ -143,11 +177,10 @@ export const AlertsProvider = ({ children }) => {
           },
         });
       } else if (!triggered && wasActive) {
-        // Resolved
         activeRules.current.delete(rule.id);
       }
     });
-  }, [current, settings]);
+  }, [current, agents, settings]);
 
   const markAllRead = useCallback(() => dispatch({ type: 'MARK_ALL_READ' }), []);
   const dismiss = useCallback((id) => dispatch({ type: 'DISMISS', id }), []);

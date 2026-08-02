@@ -3,8 +3,10 @@ import { formatUptime } from '../../utils/formatters';
 import useMetrics from '../../hooks/useMetrics';
 import StatusBadge from './StatusBadge';
 
-const UptimeCard = () => {
-  const { uptime, status, connected } = useMetrics();
+const UptimeCard = ({ uptime: propUptime, status: propStatus }) => {
+  const { uptime: contextUptime, status: contextStatus, connected } = useMetrics();
+  const uptime = propUptime !== undefined ? propUptime : (contextUptime || 0);
+  const status = propStatus || contextStatus || 'online';
 
   const days    = Math.floor(uptime / 86400);
   const hours   = Math.floor((uptime % 86400) / 3600);
@@ -55,7 +57,7 @@ const UptimeCard = () => {
       </div>
 
       <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'center' }}>
-        <StatusBadge status={connected ? (status || 'online') : 'offline'} />
+        <StatusBadge status={status} />
       </div>
     </div>
   );

@@ -1,0 +1,143 @@
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const helmet = require('helmet');
+const fs = require('fs');
+
+const authRoutes = require('./modules/auth/auth.route');
+const metricsRoutes = require('./modules/metrics/metrics.route');
+const serverRoutes = require('./modules/servers/server.route');
+const smtpRoutes = require('./modules/smtp/smtp.route');
+const errorHandler = require('./middlewares/errorHandler');
+const { apiLimiter } = require('./middlewares/rateLimiter');
+const logger = require('./utils/logger');
+
+const app = express();
+
+app.use(helmet());
+
+// ── CORS ──────────────────────────────────────────────────────────────────────
+const getAllowedOrigins = () => {
+  const origins = [];
+  // Always allow localhost in any form (dev)
+  if (process.env.NODE_ENV !== 'production') {
+    origins.push('http://localhost:3002');
+    origins.push('http://localhost:3000');
+    origins.push('http://127.0.0.1:3002');
+    origins.push('http://127.0.0.1:3000');
+  }
+  // Allow configured client URL(s)
+  if (process.env.CLIENT_URL) {
+    process.env.CLIENT_URL.split(',').forEach((u) => origins.push(u.trim()));
+  }
+  return origins;
+};
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow server-to-server (no origin) and configured origins
+    if (!origin) return callback(null, true);
+
+    const allowed = getAllowedOrigins();
+    // In dev allow all localhost origins
+    if (
+      /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ||
+      allowed.includes(origin) ||
+      allowed.includes('*')
+    ) {
+      return callback(null, true);
+    }
+
+    if (process.env.NODE_ENV !== 'production') {
+      // In dev be permissive — allow any origin
+      return callback(null, true);
+    }
+
+    // In production — reject unknown origins
+    logger.warn(`CORS blocked: ${origin}`);
+    return callback(new Error(`CORS: origin ${origin} not allowed`), false);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id', 'x-user-email', 'x-user-name'],
+};
+
+app.use(cors(corsOptions));
+app.options('/{*path}', cors(corsOptions)); // Handle preflight (Express 5 syntax)
+
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// ── API Rate Limiting ─────────────────────────────────────────────────────────
+app.use('/api/', apiLimiter);
+
+// ── Routes ────────────────────────────────────────────────────────────────────
+app.use('/api/auth', authRoutes);
+app.use('/api/metrics', metricsRoutes);
+app.use('/api/servers', serverRoutes);
+app.use('/api/smtp', smtpRoutes);
+
+// ── Agent script download ─────────────────────────────────────────────────────
+app.get('/agent.py', (_req, res) => {
+  res.download(path.join(__dirname, '../agent.py'), 'agent.py');
+});
+
+// ── Install scripts ───────────────────────────────────────────────────────────
+// Quick one-liner shell installer: curl https://your-host/install.sh | bash
+app.get('/install.sh', (req, res) => {
+  const host = process.env.DASHBOARD_URL || `${req.protocol}://${req.get('host')}`;
+  const script = `#!/bin/bash
+set -e
+echo "================================================"
+echo "  ServerPulse Agent Installer"
+echo "================================================"
+
+# Check Python3
+if ! command -v python3 &>/dev/null; then
+  echo "Installing Python3..."
+  sudo apt-get update -qq && sudo apt-get install -y python3 python3-pip
+fi
+
+# Install dependencies
+pip3 install -q psutil requests
+
+# Download agent
+curl -fsSL "${host}/agent.py" -o /opt/serverpulse-agent.py
+
+echo ""
+echo "Agent downloaded to /opt/serverpulse-agent.py"
+echo ""
+echo "Run with your server ID and API key from the dashboard:"
+echo "  SERVERPULSE_ID=my-server SERVERPULSE_KEY=shd_xxx... python3 /opt/serverpulse-agent.py"
+echo ""
+echo "Or run in background:"
+echo "  nohup SERVERPULSE_ID=my-server SERVERPULSE_KEY=shd_xxx... python3 /opt/serverpulse-agent.py > /var/log/serverpulse.log 2>&1 &"
+`;
+  res.setHeader('Content-Type', 'text/x-sh');
+  res.send(script);
+});
+
+// ── Frontend static serving ───────────────────────────────────────────────────
+const frontendBuildPath = path.join(__dirname, '../../frontend/build');
+if (fs.existsSync(frontendBuildPath)) {
+  app.use(express.static(frontendBuildPath));
+  app.get('/{*path}', (req, res, next) => {
+    if (req.originalUrl.startsWith('/api') || req.originalUrl === '/agent.py' || req.originalUrl === '/install.sh') {
+      return next();
+    }
+    res.sendFile(path.join(frontendBuildPath, 'index.html'));
+  });
+} else {
+  app.get('/', (_req, res) => {
+    res.json({ message: 'ServerPulse API is running', timestamp: new Date() });
+  });
+}
+
+// ── 404 & Error Handlers ─────────────────────────────────────────────────────
+app.use((_req, res) => {
+  res.status(404).json({ success: false, message: 'Route not found' });
+});
+
+app.use(errorHandler);
+
+module.exports = app;
