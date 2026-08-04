@@ -17,14 +17,14 @@ const usageToScore = (pct) => {
 
 const tempToScore = (celsius) => {
   const num = typeof celsius === 'number' && !isNaN(celsius) ? celsius : parseFloat(celsius);
-  if (!num || num <= 0) return 80;
+  if (!num || num <= 0) return 100;
   if (num <= 50) return 100;
   if (num >= 90) return 0;
   return Math.round(((90 - num) / 40) * 100);
 };
 
 const servicesToScore = (services = []) => {
-  if (!Array.isArray(services) || !services.length) return 80;
+  if (!Array.isArray(services) || !services.length) return 100;
   const running = services.filter((s) => s && s.running).length;
   return Math.round((running / services.length) * 100);
 };
@@ -70,11 +70,11 @@ export const computeHealthScore = (current) => {
       color: '#888888',
       gradient: 'linear-gradient(135deg, #888888, #aaaaaa)',
       breakdown: [
-        { label: 'CPU',         score: 0, weight: '25%', icon: '🖥️' },
-        { label: 'Memory',      score: 0, weight: '25%', icon: '💾' },
-        { label: 'Disk',        score: 0, weight: '20%', icon: '💿' },
-        { label: 'Temperature', score: 0, weight: '15%', icon: '🌡️' },
-        { label: 'Services',    score: 0, weight: '15%', icon: '⚙️' },
+        { label: 'CPU',         score: 0, valText: 'Offline', weight: '25%', icon: '🖥️' },
+        { label: 'Memory',      score: 0, valText: 'Offline', weight: '25%', icon: '💾' },
+        { label: 'Disk',        score: 0, valText: 'Offline', weight: '20%', icon: '💿' },
+        { label: 'Temperature', score: 0, valText: 'Offline', weight: '15%', icon: '🌡️' },
+        { label: 'Services',    score: 0, valText: 'Offline', weight: '15%', icon: '⚙️' },
       ],
     };
   }
@@ -83,9 +83,9 @@ export const computeHealthScore = (current) => {
   const diskArray = current.disks ?? current.disk ?? [];
   const primaryDisk = Array.isArray(diskArray) ? diskArray[0] : (diskArray || {});
 
-  const cpuVal  = current.cpu?.usage ?? current.cpuUsage ?? 0;
-  const ramVal  = current.memory?.usagePercent ?? current.memPercent ?? 0;
-  const diskVal = primaryDisk?.usagePercent ?? current.diskPercent ?? 0;
+  const cpuVal  = Number(current.cpu?.usage ?? current.cpuUsage ?? 0);
+  const ramVal  = Number(current.memory?.usagePercent ?? current.memPercent ?? 0);
+  const diskVal = Number(primaryDisk?.usagePercent ?? current.diskPercent ?? 0);
   const tempVal = current.temperature?.main ?? current.temperatures?.[0]?.main ?? null;
   const services = current.services ?? [];
 
@@ -111,11 +111,11 @@ export const computeHealthScore = (current) => {
     color: scoreToColor(score),
     gradient: scoreToGradient(score),
     breakdown: [
-      { label: 'CPU',         score: cpuScore,  weight: '25%', icon: '🖥️' },
-      { label: 'Memory',      score: ramScore,  weight: '25%', icon: '💾' },
-      { label: 'Disk',        score: diskScore, weight: '20%', icon: '💿' },
-      { label: 'Temperature', score: tempScore, weight: '15%', icon: '🌡️' },
-      { label: 'Services',    score: svcScore,  weight: '15%', icon: '⚙️' },
+      { label: 'CPU',         score: cpuScore,  valText: `${cpuVal.toFixed(1)}% used`, weight: '25%', icon: '🖥️' },
+      { label: 'Memory',      score: ramScore,  valText: `${ramVal.toFixed(1)}% used`, weight: '25%', icon: '💾' },
+      { label: 'Disk',        score: diskScore, valText: `${diskVal.toFixed(1)}% used`, weight: '20%', icon: '💿' },
+      { label: 'Temperature', score: tempScore, valText: tempVal ? `${tempVal}°C` : 'Optimal', weight: '15%', icon: '🌡️' },
+      { label: 'Services',    score: svcScore,  valText: Array.isArray(services) && services.length ? `${services.filter(s=>s.running).length}/${services.length} Up` : 'All Running', weight: '15%', icon: '⚙️' },
     ],
   };
 };

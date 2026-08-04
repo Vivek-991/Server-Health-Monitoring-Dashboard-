@@ -56,7 +56,7 @@ const RingGauge = ({ score = 100, color = '#22c55e', size = 130 }) => {
 };
 
 // ── Score Bar ─────────────────────────────────────────────────────────────────
-const ScoreBar = ({ label, score, icon }) => {
+const ScoreBar = ({ label, score, valText, icon }) => {
   const color = score >= 80 ? '#22c55e' : score >= 60 ? '#f59e0b' : score >= 40 ? '#f97316' : '#ef4444';
   return (
     <div className="hs-bar-row">
@@ -68,7 +68,9 @@ const ScoreBar = ({ label, score, icon }) => {
           style={{ width: `${score}%`, background: color }}
         />
       </div>
-      <span className="hs-bar-val" style={{ color }}>{score}</span>
+      <span className="hs-bar-val" style={{ color, minWidth: '70px', textAlign: 'right', fontSize: 'var(--text-xs)' }}>
+        {valText || `${score}/100`}
+      </span>
     </div>
   );
 };
