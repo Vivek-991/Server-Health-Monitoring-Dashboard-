@@ -156,7 +156,7 @@ const AddServerModal = ({ onClose, backendBaseUrl, currentUser }) => {
 
   const cmd = {
     linux: {
-      prereq:     `sudo apt update && sudo apt install python3 python3-pip -y && pip3 install psutil requests`,
+      prereq:     `sudo apt update && sudo apt install python3 python3-pip python3-psutil python3-requests -y || pip3 install --break-system-packages psutil requests`,
       test:       `curl -fsSL ${effectiveBaseUrl}/agent.py -o agent.py && SERVERPULSE_ID="${srvId}" SERVERPULSE_KEY="${apiKey}" SERVERPULSE_URL="${effectiveBaseUrl}/api/metrics/push" python3 agent.py`,
       background: `nohup SERVERPULSE_ID="${srvId}" SERVERPULSE_KEY="${apiKey}" SERVERPULSE_URL="${effectiveBaseUrl}/api/metrics/push" python3 agent.py > agent.log 2>&1 &`,
       oneliner:   `curl -fsSL ${effectiveBaseUrl}/install.sh | sudo bash && SERVERPULSE_ID="${srvId}" SERVERPULSE_KEY="${apiKey}" SERVERPULSE_URL="${effectiveBaseUrl}/api/metrics/push" python3 /opt/serverpulse-agent.py`,

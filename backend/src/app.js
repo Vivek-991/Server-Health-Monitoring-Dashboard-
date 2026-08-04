@@ -92,14 +92,13 @@ echo "================================================"
 echo "  ServerPulse Agent Installer"
 echo "================================================"
 
-# Check Python3
-if ! command -v python3 &>/dev/null; then
-  echo "Installing Python3..."
-  sudo apt-get update -qq && sudo apt-get install -y python3 python3-pip
+# Install Python3 & dependencies safely (supports Ubuntu 24.04 PEP 668)
+if command -v apt-get &>/dev/null; then
+  echo "Installing Python3 and dependencies via apt..."
+  sudo apt-get update -qq && sudo apt-get install -y python3 python3-pip python3-psutil python3-requests
+else
+  pip3 install --break-system-packages -q psutil requests 2>/dev/null || pip3 install -q psutil requests
 fi
-
-# Install dependencies
-pip3 install -q psutil requests
 
 # Download agent
 curl -fsSL "${host}/agent.py" -o /opt/serverpulse-agent.py
