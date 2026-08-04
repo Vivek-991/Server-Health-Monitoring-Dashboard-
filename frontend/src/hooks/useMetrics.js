@@ -36,7 +36,7 @@ const useMetrics = () => {
     network: current?.network ?? {},
 
     // Uptime
-    uptime: current?.uptime ?? 0,
+    uptime: current?.os?.uptime ?? current?.uptime ?? 0,
 
     // Temperature
     temperature: current?.temperature ?? {},

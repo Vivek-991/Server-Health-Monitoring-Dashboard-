@@ -4,9 +4,11 @@ import useMetrics from '../../hooks/useMetrics';
 import StatusBadge from './StatusBadge';
 
 const UptimeCard = ({ uptime: propUptime, status: propStatus }) => {
-  const { uptime: contextUptime, status: contextStatus, connected } = useMetrics();
-  const uptime = propUptime !== undefined ? propUptime : (contextUptime || 0);
+  const { uptime: contextUptime, status: contextStatus } = useMetrics();
+  const rawUptime = (propUptime !== undefined && propUptime !== null && propUptime > 0) ? propUptime : contextUptime;
   const status = propStatus || contextStatus || 'online';
+  const isOffline = status === 'offline';
+  const uptime = isOffline ? 0 : (typeof rawUptime === 'number' && !isNaN(rawUptime) ? rawUptime : (parseFloat(rawUptime) || 0));
 
   const days    = Math.floor(uptime / 86400);
   const hours   = Math.floor((uptime % 86400) / 3600);
