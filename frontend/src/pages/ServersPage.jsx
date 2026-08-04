@@ -146,24 +146,29 @@ const AddServerModal = ({ onClose, backendBaseUrl, currentUser }) => {
     }
   }, [serverName]);
 
+  const [customServerUrl, setCustomServerUrl] = useState(backendBaseUrl);
+  const effectiveBaseUrl = useMemo(() => {
+    return (customServerUrl || backendBaseUrl).replace(/\/api\/?$/, '').replace(/\/+$/, '');
+  }, [customServerUrl, backendBaseUrl]);
+
   const apiKey = createdServer?.apiKey || 'shd_YOUR_API_KEY';
   const srvId  = createdServer?.name || serverName;
 
   const cmd = {
     linux: {
       prereq:     `sudo apt update && sudo apt install python3 python3-pip -y && pip3 install psutil requests`,
-      test:       `curl -fsSL ${backendBaseUrl}/agent.py -o agent.py && SERVERPULSE_ID="${srvId}" SERVERPULSE_KEY="${apiKey}" SERVERPULSE_URL="${backendBaseUrl}/api/metrics/push" python3 agent.py`,
-      background: `nohup SERVERPULSE_ID="${srvId}" SERVERPULSE_KEY="${apiKey}" SERVERPULSE_URL="${backendBaseUrl}/api/metrics/push" python3 agent.py > agent.log 2>&1 &`,
-      oneliner:   `curl -fsSL ${backendBaseUrl}/install.sh | sudo bash && SERVERPULSE_ID="${srvId}" SERVERPULSE_KEY="${apiKey}" SERVERPULSE_URL="${backendBaseUrl}/api/metrics/push" python3 /opt/serverpulse-agent.py`,
+      test:       `curl -fsSL ${effectiveBaseUrl}/agent.py -o agent.py && SERVERPULSE_ID="${srvId}" SERVERPULSE_KEY="${apiKey}" SERVERPULSE_URL="${effectiveBaseUrl}/api/metrics/push" python3 agent.py`,
+      background: `nohup SERVERPULSE_ID="${srvId}" SERVERPULSE_KEY="${apiKey}" SERVERPULSE_URL="${effectiveBaseUrl}/api/metrics/push" python3 agent.py > agent.log 2>&1 &`,
+      oneliner:   `curl -fsSL ${effectiveBaseUrl}/install.sh | sudo bash && SERVERPULSE_ID="${srvId}" SERVERPULSE_KEY="${apiKey}" SERVERPULSE_URL="${effectiveBaseUrl}/api/metrics/push" python3 /opt/serverpulse-agent.py`,
     },
     windows: {
-      download: `Invoke-WebRequest -Uri "${backendBaseUrl}/agent.py" -OutFile "agent.py"`,
-      run:      `pip install psutil requests; $env:SERVERPULSE_ID="${srvId}"; $env:SERVERPULSE_KEY="${apiKey}"; $env:SERVERPULSE_URL="${backendBaseUrl}/api/metrics/push"; python agent.py`,
+      download: `Invoke-WebRequest -Uri "${effectiveBaseUrl}/agent.py" -OutFile "agent.py"`,
+      run:      `pip install psutil requests; $env:SERVERPULSE_ID="${srvId}"; $env:SERVERPULSE_KEY="${apiKey}"; $env:SERVERPULSE_URL="${effectiveBaseUrl}/api/metrics/push"; python agent.py`,
     },
     macos: {
       prereq:     `pip3 install psutil requests`,
-      test:       `curl -fsSL ${backendBaseUrl}/agent.py -o agent.py && SERVERPULSE_ID="${srvId}" SERVERPULSE_KEY="${apiKey}" SERVERPULSE_URL="${backendBaseUrl}/api/metrics/push" python3 agent.py`,
-      background: `nohup SERVERPULSE_ID="${srvId}" SERVERPULSE_KEY="${apiKey}" SERVERPULSE_URL="${backendBaseUrl}/api/metrics/push" python3 agent.py > agent.log 2>&1 &`,
+      test:       `curl -fsSL ${effectiveBaseUrl}/agent.py -o agent.py && SERVERPULSE_ID="${srvId}" SERVERPULSE_KEY="${apiKey}" SERVERPULSE_URL="${effectiveBaseUrl}/api/metrics/push" python3 agent.py`,
+      background: `nohup SERVERPULSE_ID="${srvId}" SERVERPULSE_KEY="${apiKey}" SERVERPULSE_URL="${effectiveBaseUrl}/api/metrics/push" python3 agent.py > agent.log 2>&1 &`,
     },
   };
 
@@ -234,6 +239,31 @@ const AddServerModal = ({ onClose, backendBaseUrl, currentUser }) => {
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)', marginBottom: '14px', lineHeight: '1.5' }}>
               SSH into your server and run these commands. The agent will start pushing metrics every 5 seconds.
             </p>
+
+            {/* Server URL Input for remote EC2 / VPS */}
+            <div style={{
+              background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-md)', padding: '12px 14px', marginBottom: '16px'
+            }}>
+              <label htmlFor="custom-server-url" style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text-primary)', display: 'block', marginBottom: '6px' }}>
+                🌐 Dashboard Backend URL (for Remote EC2 / VPS):
+              </label>
+              <input
+                id="custom-server-url"
+                type="text"
+                value={customServerUrl}
+                onChange={(e) => setCustomServerUrl(e.target.value)}
+                placeholder="e.g. https://xxx.ngrok-free.app or http://YOUR_BACKEND_PUBLIC_IP:5000"
+                style={{
+                  width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--color-border)', background: 'var(--color-bg-primary)',
+                  color: 'var(--color-text-primary)', fontSize: 'var(--text-xs)', fontFamily: 'monospace'
+                }}
+              />
+              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', marginTop: '6px' }}>
+                💡 If testing AWS EC2 locally, expose port 5000 using <code>npx ngrok http 5000</code> and paste the ngrok URL here. The commands below will auto-update!
+              </div>
+            </div>
 
             {/* OS tabs */}
             <div className="add-server-tabs" style={{ marginBottom: '16px' }}>

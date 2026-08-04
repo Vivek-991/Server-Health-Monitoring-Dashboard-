@@ -1,5 +1,16 @@
+const dns = require('dns');
 const mongoose = require('mongoose');
 const logger = require('../utils/logger');
+
+// Resolve querySrv ECONNREFUSED by setting reliable DNS servers (Google / Cloudflare)
+try {
+  if (dns.setDefaultResultOrder) {
+    dns.setDefaultResultOrder('ipv4first');
+  }
+  dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
+} catch (err) {
+  // Ignore DNS setServers failure
+}
 
 mongoose.set('bufferCommands', false);
 
