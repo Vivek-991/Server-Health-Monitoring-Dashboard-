@@ -14,6 +14,9 @@ const logger = require('./utils/logger');
 
 const app = express();
 
+// Trust reverse proxy headers (Render, Vercel, Nginx, Cloudflare) for accurate client IP rate limiting
+app.set('trust proxy', 1);
+
 app.use(helmet());
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
