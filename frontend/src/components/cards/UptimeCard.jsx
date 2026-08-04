@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { formatUptime } from '../../utils/formatters';
 import useMetrics from '../../hooks/useMetrics';
 import StatusBadge from './StatusBadge';
@@ -8,7 +8,25 @@ const UptimeCard = ({ uptime: propUptime, status: propStatus }) => {
   const rawUptime = (propUptime !== undefined && propUptime !== null && propUptime > 0) ? propUptime : contextUptime;
   const status = propStatus || contextStatus || 'online';
   const isOffline = status === 'offline';
-  const uptime = isOffline ? 0 : (typeof rawUptime === 'number' && !isNaN(rawUptime) ? rawUptime : (parseFloat(rawUptime) || 0));
+  const targetUptime = isOffline ? 0 : (typeof rawUptime === 'number' && !isNaN(rawUptime) ? rawUptime : (parseFloat(rawUptime) || 0));
+
+  const [liveUptime, setLiveUptime] = useState(targetUptime);
+
+  // Sync state whenever new server metrics arrive from backend
+  useEffect(() => {
+    setLiveUptime(targetUptime);
+  }, [targetUptime]);
+
+  // Ticking timer: increment uptime by 1 second every 1000ms in real-time
+  useEffect(() => {
+    if (isOffline) return;
+    const timer = setInterval(() => {
+      setLiveUptime((prev) => (prev > 0 ? prev + 1 : prev));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isOffline]);
+
+  const uptime = isOffline ? 0 : liveUptime;
 
   const days    = Math.floor(uptime / 86400);
   const hours   = Math.floor((uptime % 86400) / 3600);
