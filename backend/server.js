@@ -30,6 +30,7 @@ const io = new Server(httpServer, {
       const allowed = getAllowedOrigins();
       if (
         /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ||
+        /\.vercel\.app$/.test(origin) ||
         allowed.includes(origin) ||
         process.env.NODE_ENV !== 'production'
       ) {

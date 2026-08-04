@@ -42,6 +42,8 @@ const corsOptions = {
     // In dev allow all localhost origins
     if (
       /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ||
+      /\.vercel\.app$/.test(origin) ||
+      /\.onrender\.com$/.test(origin) ||
       allowed.includes(origin) ||
       allowed.includes('*')
     ) {
