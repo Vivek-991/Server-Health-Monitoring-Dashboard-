@@ -10,14 +10,16 @@ const getHeatColor = (temp) => {
   return 'var(--color-healthy)';
 };
 
-const TemperatureCard = ({ temperature: propTemp }) => {
-  const { temperature: contextTemp } = useMetrics();
-  const temperature = propTemp || contextTemp || {};
+const TemperatureCard = ({ temperature: propTemp, status: propStatus }) => {
+  const { temperature: contextTemp, status: contextStatus } = useMetrics();
+  const status = propStatus || contextStatus || 'online';
+  const isOffline = status === 'offline';
+  const temperature = isOffline ? null : (propTemp || contextTemp || {});
 
   const mainTemp  = temperature?.main;
   const coreTemps = temperature?.cores || [];
   const maxTemp   = temperature?.max;
-  const heatColor = getHeatColor(mainTemp);
+  const heatColor = isOffline ? 'var(--color-text-secondary)' : getHeatColor(mainTemp);
 
   return (
     <div
@@ -31,7 +33,17 @@ const TemperatureCard = ({ temperature: propTemp }) => {
         </div>
       </div>
 
-      {mainTemp === null || mainTemp === undefined ? (
+      {isOffline ? (
+        <div style={{ textAlign: 'center', padding: '20px 0' }}>
+          <div style={{ fontSize: 'var(--text-3xl)', marginBottom: '8px' }}>🔴</div>
+          <div style={{ color: 'var(--color-critical)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
+            Server Offline
+          </div>
+          <div style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-xs)', marginTop: '4px' }}>
+            Temperature metrics unavailable
+          </div>
+        </div>
+      ) : mainTemp === null || mainTemp === undefined ? (
         <div style={{ textAlign: 'center', padding: '20px 0' }}>
           <div style={{ fontSize: 'var(--text-3xl)', marginBottom: '8px' }}>🌡️</div>
           <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)' }}>

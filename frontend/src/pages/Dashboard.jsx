@@ -258,7 +258,7 @@ const Dashboard = () => {
             <p className="section-title">Remote System Details</p>
             <div className="bottom-grid">
               <UptimeCard uptime={m.os?.uptime ?? m.uptime ?? 0} status={activeServer.status} />
-              <TemperatureCard temperature={m.temperatures?.[0]} />
+              <TemperatureCard temperature={isOffline ? null : m.temperatures?.[0]} status={activeServer.status} />
               <SystemLoadCard load={m.load} cpuCores={cpuCores} />
             </div>
 
