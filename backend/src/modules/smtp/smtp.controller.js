@@ -63,7 +63,7 @@ class SmtpController {
       const { sendEmailAlert } = require('../../services/emailService');
       const result = await sendEmailAlert(
         'SMTP Test',
-        'This is a test email from ServerPulse Dashboard. Your SMTP configuration is working correctly.'
+        'This is a test email from MonitorX Dashboard. Your SMTP configuration is working correctly.'
       );
 
       if (result.success) {

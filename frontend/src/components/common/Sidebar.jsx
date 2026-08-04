@@ -47,7 +47,7 @@ const Sidebar = () => {
       <div className="sidebar-logo">
         <div className="sidebar-logo-icon">⚡</div>
         <div className="sidebar-logo-text">
-          ServerPulse
+          MonitorX
           <span>Health Monitor</span>
         </div>
       </div>

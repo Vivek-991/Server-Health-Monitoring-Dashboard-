@@ -286,7 +286,7 @@ const SettingsPage = () => {
             <div className="settings-panel animate-fade-in">
               <div className="settings-panel-header">
                 <h3>📧 Email Alert Notifications</h3>
-                <p>Choose where to receive warning emails from the ServerPulse website system.</p>
+                <p>Choose where to receive warning emails from the MonitorX website system.</p>
               </div>
 
               {smtpSuccess && <div className="auth-success-pill mb-4">{smtpSuccess}</div>}
@@ -311,7 +311,7 @@ const SettingsPage = () => {
                       style={{ borderLeft: '3px solid var(--color-accent-blue)' }}
                     />
                     <small style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-xs)', marginTop: '2px' }}>
-                      Critical alerts will be automatically sent to this email directly from the ServerPulse website system.
+                      Critical alerts will be automatically sent to this email directly from the MonitorX website system.
                     </small>
                   </div>
 
@@ -372,7 +372,7 @@ const SettingsPage = () => {
 
               <div className="danger-zone mt-8">
                 <h4 className="danger-title text-red">Danger Area</h4>
-                <p className="text-muted">Logging out terminates the active ServerPulse frontend socket monitoring session.</p>
+                <p class="text-muted">Logging out terminates the active MonitorX frontend socket monitoring session.</p>
                 <button className="btn-secondary mt-2" onClick={logout}>Terminated Session & Logout</button>
               </div>
             </div>

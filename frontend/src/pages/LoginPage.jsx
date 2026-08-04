@@ -223,7 +223,7 @@ const LoginPage = () => {
         <div className="auth-logo">
           <div className="auth-logo-icon">⚡</div>
           <div className="auth-logo-text">
-            ServerPulse
+            MonitorX
             <span>Health Monitor</span>
           </div>
         </div>

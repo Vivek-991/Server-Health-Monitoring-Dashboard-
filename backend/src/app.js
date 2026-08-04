@@ -91,7 +91,7 @@ app.get('/install.sh', (req, res) => {
   const script = `#!/bin/bash
 set -e
 echo "================================================"
-echo "  ServerPulse Agent Installer & Auto-Start Service"
+echo "  MonitorX Agent Installer & Auto-Start Service"
 echo "================================================"
 
 # Install Python3 & dependencies safely (supports Ubuntu 24.04 PEP 668)
@@ -104,15 +104,15 @@ fi
 
 # Download agent
 mkdir -p /opt
-curl -fsSL "${host}/agent.py" -o /opt/serverpulse-agent.py
+curl -fsSL "${host}/agent.py" -o /opt/monitorx-agent.py
 
 # If environment variables are provided, configure Systemd service for Auto-Start on Reboot
 if [ -n "$SERVERPULSE_ID" ] && [ -n "$SERVERPULSE_KEY" ]; then
   URL="\${SERVERPULSE_URL:-${host}/api/metrics/push}"
   echo "Setting up systemd background service (Auto-start on boot)..."
-  cat << EOF | sudo tee /etc/systemd/system/serverpulse-agent.service > /dev/null
+  cat << EOF | sudo tee /etc/systemd/system/monitorx-agent.service > /dev/null
 [Unit]
-Description=ServerPulse Health Monitoring Agent
+Description=MonitorX Health Monitoring Agent
 After=network-online.target
 Wants=network-online.target
 
@@ -121,7 +121,7 @@ Type=simple
 Environment="SERVERPULSE_ID=\${SERVERPULSE_ID}"
 Environment="SERVERPULSE_KEY=\${SERVERPULSE_KEY}"
 Environment="SERVERPULSE_URL=\${URL}"
-ExecStart=/usr/bin/python3 /opt/serverpulse-agent.py
+ExecStart=/usr/bin/python3 /opt/monitorx-agent.py
 Restart=always
 RestartSec=10
 
@@ -130,15 +130,15 @@ WantedBy=multi-user.target
 EOF
 
   sudo systemctl daemon-reload
-  sudo systemctl enable serverpulse-agent.service
-  sudo systemctl restart serverpulse-agent.service
+  sudo systemctl enable monitorx-agent.service
+  sudo systemctl restart monitorx-agent.service
   echo "================================================"
-  echo "✅ ServerPulse Agent installed & started!"
-  echo "🚀 Auto-start enabled: Agent will resume on reboot."
+  echo "✅ MonitorX Agent installed & started!"
+  echo "🚀 Auto-start enabled: MonitorX Agent will resume on reboot."
   echo "================================================"
 else
   echo ""
-  echo "Agent downloaded to /opt/serverpulse-agent.py"
+  echo "Agent downloaded to /opt/monitorx-agent.py"
   echo "To enable Auto-Start service on boot, re-run with environment variables:"
   echo "  SERVERPULSE_ID=my-server SERVERPULSE_KEY=shd_xxx curl -fsSL ${host}/install.sh | sudo -E bash"
 fi
@@ -159,7 +159,7 @@ if (fs.existsSync(frontendBuildPath)) {
   });
 } else {
   app.get('/', (_req, res) => {
-    res.json({ message: 'ServerPulse API is running', timestamp: new Date() });
+    res.json({ message: 'MonitorX API is running', timestamp: new Date() });
   });
 }
 

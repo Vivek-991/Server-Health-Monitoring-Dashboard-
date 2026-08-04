@@ -77,7 +77,7 @@ const sendEmailAlert = async (subject, text) => {
   const fileConfig = getSmtpConfig();
 
   const toEmail = fileConfig.to || process.env.EMAIL_TO || 'admin@example.com';
-  const fromEmail = fileConfig.from || process.env.EMAIL_FROM || '"ServerPulse Alerts" <alerts@serverpulse.io>';
+  const fromEmail = fileConfig.from || process.env.EMAIL_FROM || '"MonitorX Alerts" <alerts@monitorx.io>';
 
   const client = await initTransporter();
 
@@ -95,7 +95,7 @@ const sendEmailAlert = async (subject, text) => {
         ${text.replace(/\n/g, '<br>')}
       </p>
       <div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid #eee; text-align: center;">
-        <small style="color: #888; font-size: 11px;">This alert was generated automatically by ServerPulse Health Dashboard.</small>
+        <small style="color: #888; font-size: 11px;">This alert was generated automatically by MonitorX Health Dashboard.</small>
       </div>
     </div>`
   };

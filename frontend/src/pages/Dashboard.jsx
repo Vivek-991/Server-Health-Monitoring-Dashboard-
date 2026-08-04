@@ -146,7 +146,7 @@ const Dashboard = () => {
             <div style={{ fontSize: '56px', marginBottom: '16px' }}>☁️</div>
             <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '10px' }}>No External Servers Connected</h2>
             <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-base)', maxWidth: '520px', margin: '0 auto 24px', lineHeight: '1.6' }}>
-              Deploy the ServerPulse agent on your AWS EC2 instance, DigitalOcean Droplet, or VPS to start tracking CPU, RAM, Disk, and bandwidth in real-time.
+              Deploy the MonitorX agent on your AWS EC2 instance, DigitalOcean Droplet, or VPS to start tracking CPU, RAM, Disk, and bandwidth in real-time.
             </p>
             <button
               className="btn-primary"
