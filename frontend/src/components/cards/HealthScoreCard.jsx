@@ -3,10 +3,11 @@ import { computeHealthScore } from '../../utils/healthScore';
 import { useMetricsContext } from '../../context/MetricsContext';
 
 // ── SVG Ring Gauge ────────────────────────────────────────────────────────────
-const RingGauge = ({ score, color, size = 130 }) => {
+const RingGauge = ({ score = 100, color = '#22c55e', size = 130 }) => {
+  const safeScore = isNaN(score) ? 100 : Math.max(0, Math.min(100, score));
   const r = (size - 20) / 2;
   const circ = 2 * Math.PI * r;
-  const pct = Math.min(score, 100) / 100;
+  const pct = safeScore / 100;
   const dash = circ * pct;
   const gap  = circ - dash;
 
@@ -16,7 +17,7 @@ const RingGauge = ({ score, color, size = 130 }) => {
       height={size}
       viewBox={`0 0 ${size} ${size}`}
       style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}
-      aria-label={`Health score: ${score}`}
+      aria-label={`Health score: ${safeScore}`}
     >
       {/* Background track */}
       <circle
@@ -38,7 +39,7 @@ const RingGauge = ({ score, color, size = 130 }) => {
         strokeLinecap="round"
         strokeDasharray={`${dash} ${gap}`}
         style={{ transition: 'stroke-dasharray 0.8s cubic-bezier(0.4,0,0.2,1), stroke 0.4s ease' }}
-        filter="url(#glow)"
+        filter="url(#hs-glow)"
       />
       {/* Glow filter */}
       <defs>
@@ -73,8 +74,11 @@ const ScoreBar = ({ label, score, icon }) => {
 };
 
 // ── Main Card ─────────────────────────────────────────────────────────────────
-const HealthScoreCard = () => {
-  const { current } = useMetricsContext();
+const HealthScoreCard = ({ metrics }) => {
+  const { current: ctxCurrent } = useMetricsContext();
+  // Prefer the explicitly passed metrics (e.g. selected remote server),
+  // fall back to context current (local server) if no prop is provided.
+  const current = metrics ?? ctxCurrent;
   const { score, grade, color, breakdown } = useMemo(
     () => computeHealthScore(current),
     [current]

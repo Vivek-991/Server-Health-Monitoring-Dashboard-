@@ -10,18 +10,22 @@
  *  Services up     15 %
  */
 
-const usageToScore = (pct) => Math.max(0, 100 - pct);
+const usageToScore = (pct) => {
+  const val = typeof pct === 'number' && !isNaN(pct) ? pct : (parseFloat(pct) || 0);
+  return Math.max(0, Math.min(100, Math.round(100 - val)));
+};
 
 const tempToScore = (celsius) => {
-  if (!celsius || celsius <= 0) return 80;
-  if (celsius <= 50) return 100;
-  if (celsius >= 90) return 0;
-  return Math.round(((90 - celsius) / 40) * 100);
+  const num = typeof celsius === 'number' && !isNaN(celsius) ? celsius : parseFloat(celsius);
+  if (!num || num <= 0) return 80;
+  if (num <= 50) return 100;
+  if (num >= 90) return 0;
+  return Math.round(((90 - num) / 40) * 100);
 };
 
 const servicesToScore = (services = []) => {
-  if (!services.length) return 80;
-  const running = services.filter((s) => s.running).length;
+  if (!Array.isArray(services) || !services.length) return 80;
+  const running = services.filter((s) => s && s.running).length;
   return Math.round((running / services.length) * 100);
 };
 
@@ -50,13 +54,13 @@ export const scoreToGradient = (score) => {
 
 /**
  * computeHealthScore
- * Handles both DB snapshots (disk[]) and agent payloads (disks[]).
+ * Handles DB snapshots, agent payloads, and live context objects safely.
  * @param {object} current - metrics snapshot
  * @returns {{ score, grade, color, gradient, breakdown }}
  */
 export const computeHealthScore = (current) => {
   if (!current) {
-    return { score: 0, grade: 'N/A', color: '#4a5568', gradient: '#4a5568', breakdown: [] };
+    return { score: 100, grade: 'A+', color: '#22c55e', gradient: 'linear-gradient(135deg, #22c55e, #4ade80)', breakdown: [] };
   }
 
   if (current.status === 'offline') {
@@ -77,21 +81,29 @@ export const computeHealthScore = (current) => {
 
   // Support both "disk" (DB snapshot) and "disks" (agent push) field names
   const diskArray = current.disks ?? current.disk ?? [];
-  const primaryDisk = diskArray[0];
+  const primaryDisk = Array.isArray(diskArray) ? diskArray[0] : (diskArray || {});
 
-  const cpuScore  = usageToScore(current.cpu?.usage ?? 50);
-  const ramScore  = usageToScore(current.memory?.usagePercent ?? 50);
-  const diskScore = usageToScore(primaryDisk?.usagePercent ?? 50);
-  const tempScore = tempToScore(current.temperature?.main ?? current.temperatures?.[0]?.main ?? null);
-  const svcScore  = servicesToScore(current.services ?? []);
+  const cpuVal  = current.cpu?.usage ?? current.cpuUsage ?? 0;
+  const ramVal  = current.memory?.usagePercent ?? current.memPercent ?? 0;
+  const diskVal = primaryDisk?.usagePercent ?? current.diskPercent ?? 0;
+  const tempVal = current.temperature?.main ?? current.temperatures?.[0]?.main ?? null;
+  const services = current.services ?? [];
 
-  const score = Math.round(
+  const cpuScore  = usageToScore(cpuVal);
+  const ramScore  = usageToScore(ramVal);
+  const diskScore = usageToScore(diskVal);
+  const tempScore = tempToScore(tempVal);
+  const svcScore  = servicesToScore(services);
+
+  const rawScore = Math.round(
     cpuScore  * 0.25 +
     ramScore  * 0.25 +
     diskScore * 0.20 +
     tempScore * 0.15 +
     svcScore  * 0.15
   );
+
+  const score = isNaN(rawScore) ? 100 : Math.max(0, Math.min(100, rawScore));
 
   return {
     score,
