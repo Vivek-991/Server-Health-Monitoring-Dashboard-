@@ -45,7 +45,7 @@ const Sidebar = () => {
     <aside className="sidebar">
       {/* Logo */}
       <div className="sidebar-logo">
-        <div className="sidebar-logo-icon">⚡</div>
+        <img src="/monitorx-logo.png" alt="MonitorX Logo" style={{ width: '36px', height: '36px', borderRadius: '8px', objectFit: 'cover' }} />
         <div className="sidebar-logo-text">
           MonitorX
           <span>Health Monitor</span>

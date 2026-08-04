@@ -221,7 +221,7 @@ const LoginPage = () => {
       <div className="auth-card">
         {/* Logo */}
         <div className="auth-logo">
-          <div className="auth-logo-icon">⚡</div>
+          <img src="/monitorx-logo.png" alt="MonitorX Logo" style={{ width: '64px', height: '64px', borderRadius: '14px', objectFit: 'cover' }} />
           <div className="auth-logo-text">
             MonitorX
             <span>Health Monitor</span>
