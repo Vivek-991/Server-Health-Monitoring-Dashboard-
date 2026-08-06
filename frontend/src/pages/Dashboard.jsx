@@ -78,7 +78,8 @@ const Dashboard = () => {
   const memUsed = isOffline ? 0 : (m.memory?.used ?? 0);
   const memTotal = isOffline ? 0 : (m.memory?.total ?? 0);
 
-  const diskList = m.disks || m.disk || [];
+  const rawDiskList = m.disks || m.disk || [];
+  const diskList = rawDiskList.filter(d => !d.mount?.startsWith('/snap') && d.fs !== 'squashfs');
   const primaryDisk = diskList[0] || {};
   const diskPercent = isOffline ? 0 : (primaryDisk.usagePercent ?? 0);
 

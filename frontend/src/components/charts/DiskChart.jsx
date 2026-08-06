@@ -43,7 +43,13 @@ const CustomTooltip = ({ active, payload }) => {
 const DiskChart = ({ metrics: propMetrics, serverId }) => {
   const contextMetrics = useMetrics(serverId);
   const metrics = propMetrics || contextMetrics.current || contextMetrics;
-  const disks = propMetrics?.disks || propMetrics?.disk || contextMetrics.disks || [];
+  const rawDisks = propMetrics?.disks || propMetrics?.disk || contextMetrics.disks || [];
+
+  const disks = rawDisks.filter((d) => {
+    const mount = d.mount || '';
+    const fs = d.fs || '';
+    return !mount.startsWith('/snap') && fs !== 'squashfs';
+  });
 
   const data = disks.map((d) => ({
     mount: d.mount || d.fs || '/',

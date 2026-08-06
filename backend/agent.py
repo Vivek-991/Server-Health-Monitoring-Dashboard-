@@ -102,11 +102,16 @@ def get_memory():
 def get_disks():
     disks = []
     for part in psutil.disk_partitions(all=False):
+        mount = part.mountpoint or ''
+        fstype = part.fstype or ''
+        # Filter out virtual snap packages, loop devices, and squashfs mounts
+        if mount.startswith('/snap') or fstype == 'squashfs' or 'loop' in part.device:
+            continue
         try:
-            usage = psutil.disk_usage(part.mountpoint)
+            usage = psutil.disk_usage(mount)
             disks.append({
-                'fs': part.fstype or 'unknown',
-                'mount': part.mountpoint,
+                'fs': fstype or 'unknown',
+                'mount': mount,
                 'device': part.device,
                 'size': usage.total,
                 'used': usage.used,
