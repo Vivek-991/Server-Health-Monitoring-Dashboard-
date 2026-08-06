@@ -167,6 +167,22 @@ class MetricsController {
         }
       }
 
+      // ── Threshold checks for alerts ──────────────────────────────────────
+      const cpuUsage = metrics.cpu?.usage ?? 0;
+      const memUsage = metrics.memory?.usagePercent ?? 0;
+      const primaryDiskUsage = metrics.disks?.[0]?.usagePercent ?? metrics.disk?.[0]?.usagePercent ?? 0;
+
+      if (cpuUsage >= 90 || memUsage >= 95 || primaryDiskUsage >= 95) {
+        const sName = dbServer?.name || serverId;
+        const alertMsg = `Critical Resource Alert on server "${sName}": CPU ${cpuUsage.toFixed(1)}%, RAM ${memUsage.toFixed(1)}%, Disk ${primaryDiskUsage.toFixed(1)}%`;
+        try {
+          const { sendEmailAlert } = require('../../services/emailService');
+          sendEmailAlert(`Critical Threshold Alert: ${sName}`, alertMsg).catch(() => {});
+        } catch {
+          // ignore email service load error
+        }
+      }
+
       // ── Broadcast via WebSocket ───────────────────────────────────────────
       const io = req.app.get('socketio');
       this.emitAgentUpdates(io);

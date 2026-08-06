@@ -4,92 +4,116 @@ import { useMetricsContext } from '../context/MetricsContext';
 import { useAlerts } from '../context/AlertsContext';
 import { useActivity } from '../context/ActivityContext';
 import { formatBytes } from '../utils/formatters';
+import { fetchHistoricalMetrics } from '../api/metricsApi';
 
 const ReportsPage = () => {
-  const { current, history } = useMetricsContext();
+  const { current, agents = {}, historyMap = {} } = useMetricsContext();
   const { alerts } = useAlerts();
   const { logs } = useActivity();
+  const [selectedServerId, setSelectedServerId] = useState('');
   const [reportType, setReportType] = useState('snapshot');
   const [format, setFormat] = useState('json');
   const [generatedReport, setGeneratedReport] = useState(null);
   const [historyReports, setHistoryReports] = useState([]);
+  const [isGenerating, setIsGenerating] = useState(false);
 
-  const generateReport = () => {
+  const agentKeys = Object.keys(agents);
+  const activeServerId = selectedServerId || agentKeys[0] || '';
+  const activeAgent = agents[activeServerId] || current;
+
+  const generateReport = async () => {
+    setIsGenerating(true);
     let reportData = {};
     const timestamp = new Date().toISOString();
+    const serverName = activeAgent?.name || activeServerId || 'Primary Server';
 
-    if (reportType === 'snapshot') {
-      reportData = {
-        title: 'System Metrics Snapshot Report',
-        timestamp,
-        metrics: current ? {
-          cpu: {
-            usage: `${current.cpu?.usage?.toFixed(1)}%`,
-            model: current.cpu?.model,
-            cores: current.cpu?.cores
-          },
-          memory: {
-            total: formatBytes(current.memory?.total),
-            used: formatBytes(current.memory?.used),
-            free: formatBytes(current.memory?.free),
-            usagePercent: `${current.memory?.usagePercent?.toFixed(1)}%`
-          },
-          disks: current.disks?.map(d => ({
-            fs: d.fs,
-            size: formatBytes(d.size),
-            used: formatBytes(d.used),
-            usagePercent: `${d.usagePercent?.toFixed(1)}%`,
-            mount: d.mount
-          })),
-          uptime: `${Math.floor((current.os?.uptime || 0) / 3600)} hours`
-        } : 'No current metrics'
-      };
-    } else if (reportType === 'alerts') {
-      reportData = {
-        title: 'System Alerts History Report',
-        timestamp,
-        alertsCount: alerts.length,
-        alerts: alerts.map(a => ({
-          time: a.timestamp,
-          severity: a.severity,
-          title: a.title,
-          message: a.message
-        }))
-      };
-    } else if (reportType === 'activity') {
-      reportData = {
-        title: 'User Activity Logs Report',
-        timestamp,
-        logsCount: logs.length,
-        logs: logs.map(l => ({
-          time: l.timestamp,
-          type: l.type,
-          action: l.action,
-          detail: l.detail
-        }))
-      };
-    } else {
-      // Historical
-      const avgCpu = history?.length ? (history.reduce((acc, curr) => acc + (curr.cpu?.usage || 0), 0) / history.length) : 0;
-      const avgRam = history?.length ? (history.reduce((acc, curr) => acc + (curr.memory?.usagePercent || 0), 0) / history.length) : 0;
+    try {
+      if (reportType === 'snapshot') {
+        reportData = {
+          title: `System Metrics Snapshot Report (${serverName})`,
+          timestamp,
+          serverId: activeServerId,
+          metrics: activeAgent ? {
+            cpu: {
+              usage: `${(activeAgent.cpu?.usage ?? 0).toFixed(1)}%`,
+              model: activeAgent.cpu?.model || 'Cloud VM Processor',
+              cores: activeAgent.cpu?.cores || 1
+            },
+            memory: {
+              total: formatBytes(activeAgent.memory?.total || 0),
+              used: formatBytes(activeAgent.memory?.used || 0),
+              free: formatBytes(activeAgent.memory?.free || 0),
+              usagePercent: `${(activeAgent.memory?.usagePercent ?? 0).toFixed(1)}%`
+            },
+            disks: (activeAgent.disks || activeAgent.disk || []).map(d => ({
+              fs: d.fs || 'ext4',
+              size: formatBytes(d.size || 0),
+              used: formatBytes(d.used || 0),
+              usagePercent: `${(d.usagePercent ?? 0).toFixed(1)}%`,
+              mount: d.mount || '/'
+            })),
+            uptime: `${Math.floor((activeAgent.os?.uptime || activeAgent.uptime || 0) / 3600)} hours`
+          } : 'No metrics available'
+        };
+      } else if (reportType === 'alerts') {
+        reportData = {
+          title: 'System Alerts History Report',
+          timestamp,
+          alertsCount: alerts.length,
+          alerts: alerts.map(a => ({
+            time: a.timestamp,
+            severity: a.severity,
+            title: a.title,
+            message: a.message
+          }))
+        };
+      } else if (reportType === 'activity') {
+        reportData = {
+          title: 'User Activity Logs Report',
+          timestamp,
+          logsCount: logs.length,
+          logs: logs.map(l => ({
+            time: l.timestamp,
+            type: l.type,
+            action: l.action,
+            detail: l.detail
+          }))
+        };
+      } else {
+        // Fetch historical snapshots from backend API
+        const apiRes = await fetchHistoricalMetrics(300, activeServerId).catch(() => ({ data: [] }));
+        const snapshots = apiRes?.data?.length ? apiRes.data : (historyMap[activeServerId] || []);
 
-      reportData = {
-        title: 'Historical Trends Summary Report',
-        timestamp,
-        dataPointsCount: history?.length || 0,
-        aggregates: {
-          averageCpuUsage: `${avgCpu.toFixed(1)}%`,
-          averageMemoryUsage: `${avgRam.toFixed(1)}%`,
-          monitoredPeriodSeconds: (history?.length || 0) * 2
-        }
-      };
+        const cpuArr = snapshots.map(s => s.cpu?.usage ?? 0);
+        const ramArr = snapshots.map(s => s.memory?.usagePercent ?? 0);
+
+        const avgCpu = cpuArr.length ? (cpuArr.reduce((a, b) => a + b, 0) / cpuArr.length) : 0;
+        const maxCpu = cpuArr.length ? Math.max(...cpuArr) : 0;
+        const avgRam = ramArr.length ? (ramArr.reduce((a, b) => a + b, 0) / ramArr.length) : 0;
+        const maxRam = ramArr.length ? Math.max(...ramArr) : 0;
+
+        reportData = {
+          title: `Historical Trends Summary Report (${serverName})`,
+          timestamp,
+          serverId: activeServerId,
+          dataPointsCount: snapshots.length,
+          aggregates: {
+            averageCpuUsage: `${avgCpu.toFixed(1)}%`,
+            peakCpuUsage: `${maxCpu.toFixed(1)}%`,
+            averageMemoryUsage: `${avgRam.toFixed(1)}%`,
+            peakMemoryUsage: `${maxRam.toFixed(1)}%`,
+          }
+        };
+      }
+
+      setGeneratedReport(reportData);
+      setHistoryReports(prev => [
+        { id: Date.now().toString(), title: reportData.title, timestamp, type: reportType },
+        ...prev.slice(0, 4)
+      ]);
+    } finally {
+      setIsGenerating(false);
     }
-
-    setGeneratedReport(reportData);
-    setHistoryReports(prev => [
-      { id: Date.now().toString(), title: reportData.title, timestamp, type: reportType },
-      ...prev.slice(0, 4)
-    ]);
   };
 
   const downloadReport = () => {
@@ -160,7 +184,38 @@ const ReportsPage = () => {
       <div className="reports-grid">
         <div className="card reports-control-card">
           <h3 className="section-subtitle">Generate New Report</h3>
-          
+
+          {agentKeys.length > 0 && (
+            <div className="form-group mb-4">
+              <label className="form-label">Select Server</label>
+              <select
+                value={activeServerId}
+                onChange={(e) => setSelectedServerId(e.target.value)}
+                style={{
+                  width: '100%',
+                  background: 'var(--color-bg-secondary)',
+                  color: 'var(--color-text-primary)',
+                  border: '1px solid var(--color-border)',
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  fontWeight: '600',
+                  fontSize: 'var(--text-sm)',
+                  cursor: 'pointer',
+                  outline: 'none',
+                }}
+              >
+                {agentKeys.map((key) => {
+                  const ag = agents[key];
+                  return (
+                    <option key={key} value={key}>
+                      🖥️ {ag?.name || key} ({ag?.ip || 'remote'})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          )}
+
           <div className="form-group">
             <label className="form-label">Report Type</label>
             <div className="report-type-options">

@@ -1,11 +1,7 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import PageLayout from '../components/common/PageLayout';
 import { useAuth } from '../context/AuthContext';
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-const USERS_KEY = 'shm-users';
-const loadUsers  = () => { try { return JSON.parse(localStorage.getItem(USERS_KEY)) || []; } catch { return []; } };
-const saveUsers  = (u) => localStorage.setItem(USERS_KEY, JSON.stringify(u));
+import { userApi } from '../api/metricsApi';
 
 const Avatar = ({ letter, color = '#6384ff' }) => (
   <div className="um-avatar" style={{ background: `linear-gradient(135deg, ${color}, #a855f7)` }}>
@@ -13,25 +9,26 @@ const Avatar = ({ letter, color = '#6384ff' }) => (
   </div>
 );
 
-const ROLE_COLORS = { Admin: '#6384ff', Viewer: '#22c55e', Editor: '#f59e0b' };
+const ROLE_COLORS = { admin: '#6384ff', viewer: '#22c55e', editor: '#f59e0b', Admin: '#6384ff', Viewer: '#22c55e', Editor: '#f59e0b' };
 
 // ── Add User Modal ─────────────────────────────────────────────────────────────
 const AddUserModal = ({ onClose, onAdd }) => {
-  const [f, setF] = useState({ name: '', email: '', password: '', role: 'Viewer' });
+  const [f, setF] = useState({ name: '', email: '', password: '', role: 'viewer' });
   const [err, setErr] = useState('');
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     if (!f.name || !f.email || !f.password) { setErr('All fields are required.'); return; }
     if (f.password.length < 6) { setErr('Password must be at least 6 chars.'); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) { setErr('Invalid email.'); return; }
-    const users = loadUsers();
-    if (users.find((u) => u.email.toLowerCase() === f.email.toLowerCase())) { setErr('Email already exists.'); return; }
-    const newUser = { id: Date.now().toString(), name: f.name, email: f.email, password: f.password, role: f.role, avatar: f.name[0].toUpperCase(), createdAt: new Date().toISOString(), active: true };
-    saveUsers([...users, newUser]);
-    onAdd();
-    onClose();
+    try {
+      await userApi.create(f);
+      onAdd();
+      onClose();
+    } catch (error) {
+      setErr(error.message || 'Failed to create user');
+    }
   };
 
   return (
@@ -52,9 +49,9 @@ const AddUserModal = ({ onClose, onAdd }) => {
           <div className="modal-field">
             <label>Role</label>
             <select value={f.role} onChange={set('role')}>
-              <option value="Viewer">Viewer</option>
-              <option value="Editor">Editor</option>
-              <option value="Admin">Admin</option>
+              <option value="viewer">Viewer</option>
+              <option value="editor">Editor</option>
+              <option value="admin">Admin</option>
             </select>
           </div>
           <div className="modal-actions">
@@ -70,26 +67,55 @@ const AddUserModal = ({ onClose, onAdd }) => {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 const UserManagementPage = () => {
   const { user: me } = useAuth();
-  const [users, setUsers]     = useState(loadUsers);
+  const [users, setUsers]     = useState([]);
   const [search, setSearch]   = useState('');
   const [showAdd, setShowAdd] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const refresh = useCallback(() => setUsers(loadUsers()), []);
+  const fetchUsers = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await userApi.list();
+      if (res?.data) {
+        setUsers(res.data);
+      }
+    } catch {
+      // Fallback if network or auth error
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const toggleActive = (id) => {
-    const updated = loadUsers().map((u) => u.id === id ? { ...u, active: !u.active } : u);
-    saveUsers(updated); setUsers(updated);
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
+  const toggleActive = async (u) => {
+    try {
+      await userApi.update(u.id || u._id, { isActive: !u.isActive });
+      fetchUsers();
+    } catch (err) {
+      alert(`Failed to update status: ${err.message}`);
+    }
   };
 
-  const deleteUser = (id) => {
-    if (!window.confirm('Delete this user permanently?')) return;
-    const updated = loadUsers().filter((u) => u.id !== id);
-    saveUsers(updated); setUsers(updated);
+  const deleteUser = async (id) => {
+    if (!window.confirm('Delete this user permanently from backend?')) return;
+    try {
+      await userApi.delete(id);
+      fetchUsers();
+    } catch (err) {
+      alert(`Failed to delete user: ${err.message}`);
+    }
   };
 
-  const changeRole = (id, role) => {
-    const updated = loadUsers().map((u) => u.id === id ? { ...u, role } : u);
-    saveUsers(updated); setUsers(updated);
+  const changeRole = async (id, role) => {
+    try {
+      await userApi.update(id, { role: role.toLowerCase() });
+      fetchUsers();
+    } catch (err) {
+      alert(`Failed to update role: ${err.message}`);
+    }
   };
 
   const filtered = users.filter((u) =>
@@ -102,7 +128,7 @@ const UserManagementPage = () => {
       <div className="page-header">
         <div>
           <h1 className="page-title">👥 User Management</h1>
-          <p className="page-sub">{users.length} registered user{users.length !== 1 ? 's' : ''}</p>
+          <p className="page-sub">{users.length} registered user{users.length !== 1 ? 's' : ''} in database</p>
         </div>
         <button className="btn-primary" onClick={() => setShowAdd(true)}>➕ Add User</button>
       </div>
@@ -131,56 +157,62 @@ const UserManagementPage = () => {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {loading ? (
+                <tr><td colSpan={6} className="table-empty">Loading user accounts...</td></tr>
+              ) : filtered.length === 0 ? (
                 <tr><td colSpan={6} className="table-empty">No users found</td></tr>
-              ) : filtered.map((u) => (
-                <tr key={u.id} className={!u.active ? 'row-inactive' : ''}>
-                  <td>
-                    <div className="um-user-cell">
-                      <Avatar letter={u.avatar || u.name?.[0] || '?'} color={ROLE_COLORS[u.role] || '#6384ff'} />
-                      <span className="um-name">{u.name}{u.id === me?.id && <span className="um-you-tag">you</span>}</span>
-                    </div>
-                  </td>
-                  <td className="td-mono">{u.email}</td>
-                  <td>
-                    <select
-                      className="role-select"
-                      value={u.role || 'Viewer'}
-                      onChange={(e) => changeRole(u.id, e.target.value)}
-                      disabled={u.id === me?.id}
-                      style={{ color: ROLE_COLORS[u.role] || '#6384ff' }}
-                    >
-                      <option value="Viewer">Viewer</option>
-                      <option value="Editor">Editor</option>
-                      <option value="Admin">Admin</option>
-                    </select>
-                  </td>
-                  <td className="td-muted">{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}</td>
-                  <td>
-                    <span className={`status-pill ${u.active !== false ? 'active' : 'inactive'}`}>
-                      {u.active !== false ? '● Active' : '○ Inactive'}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="action-btns">
-                      {u.id !== me?.id && (
-                        <>
-                          <button className="act-btn" onClick={() => toggleActive(u.id)} title={u.active !== false ? 'Deactivate' : 'Activate'}>
-                            {u.active !== false ? '⏸' : '▶'}
-                          </button>
-                          <button className="act-btn danger" onClick={() => deleteUser(u.id)} title="Delete">🗑</button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              ) : filtered.map((u) => {
+                const uId = u.id || u._id;
+                const isMe = uId === me?.id || uId === me?._id;
+                return (
+                  <tr key={uId} className={u.isActive === false ? 'row-inactive' : ''}>
+                    <td>
+                      <div className="um-user-cell">
+                        <Avatar letter={u.name?.[0]?.toUpperCase() || '?'} color={ROLE_COLORS[u.role] || '#6384ff'} />
+                        <span className="um-name">{u.name}{isMe && <span className="um-you-tag">you</span>}</span>
+                      </div>
+                    </td>
+                    <td className="td-mono">{u.email}</td>
+                    <td>
+                      <select
+                        className="role-select"
+                        value={u.role ? u.role.toLowerCase() : 'viewer'}
+                        onChange={(e) => changeRole(uId, e.target.value)}
+                        disabled={isMe}
+                        style={{ color: ROLE_COLORS[u.role] || '#6384ff' }}
+                      >
+                        <option value="viewer">Viewer</option>
+                        <option value="editor">Editor</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </td>
+                    <td className="td-muted">{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}</td>
+                    <td>
+                      <span className={`status-pill ${u.isActive !== false ? 'active' : 'inactive'}`}>
+                        {u.isActive !== false ? '● Active' : '○ Inactive'}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="action-btns">
+                        {!isMe && (
+                          <>
+                            <button className="act-btn" onClick={() => toggleActive(u)} title={u.isActive !== false ? 'Deactivate' : 'Activate'}>
+                              {u.isActive !== false ? '⏸' : '▶'}
+                            </button>
+                            <button className="act-btn danger" onClick={() => deleteUser(uId)} title="Delete">🗑</button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       </div>
 
-      {showAdd && <AddUserModal onClose={() => setShowAdd(false)} onAdd={refresh} />}
+      {showAdd && <AddUserModal onClose={() => setShowAdd(false)} onAdd={fetchUsers} />}
     </PageLayout>
   );
 };

@@ -86,4 +86,11 @@ export const serverApi = {
   getMetrics: (id, limit) => apiClient.get(`/servers/${id}/metrics`, { params: { limit } }),
 };
 
+export const userApi = {
+  list: () => apiClient.get('/users'),
+  create: (data) => apiClient.post('/users', data),
+  update: (id, data) => apiClient.patch(`/users/${id}`, data),
+  delete: (id) => apiClient.delete(`/users/${id}`),
+};
+
 export default apiClient;

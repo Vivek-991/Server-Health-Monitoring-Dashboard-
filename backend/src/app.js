@@ -8,6 +8,7 @@ const authRoutes = require('./modules/auth/auth.route');
 const metricsRoutes = require('./modules/metrics/metrics.route');
 const serverRoutes = require('./modules/servers/server.route');
 const smtpRoutes = require('./modules/smtp/smtp.route');
+const usersRoutes = require('./modules/users/users.route');
 const errorHandler = require('./middlewares/errorHandler');
 const { apiLimiter } = require('./middlewares/rateLimiter');
 const logger = require('./utils/logger');
@@ -81,6 +82,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/metrics', metricsRoutes);
 app.use('/api/servers', serverRoutes);
 app.use('/api/smtp', smtpRoutes);
+app.use('/api/users', usersRoutes);
 
 // ── Agent script download ─────────────────────────────────────────────────────
 app.get('/agent.py', (_req, res) => {

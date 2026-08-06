@@ -157,12 +157,13 @@ const LiveServerDetail = ({ current, serverId }) => {
 const ServerDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { current: localCurrent, agents } = useMetrics();
+  const { agents } = useMetrics();
 
-  const isLocal = id === 'local';
-  const agentMetrics = agents[id];
+  const agentKeys = Object.keys(agents);
+  const agentMetrics = agents[id] || (id === 'local' ? agents[agentKeys[0]] : null);
+  const serverId = agentMetrics?.id || id;
 
-  if (!isLocal && !agentMetrics) {
+  if (!agentMetrics) {
     return (
       <PageLayout>
         <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -176,10 +177,7 @@ const ServerDetailPage = () => {
     );
   }
 
-  const isCloudHost = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-  const name = isLocal 
-    ? (isCloudHost ? `Primary Server (${window.location.hostname})` : 'Primary Server (Central)')
-    : `${agentMetrics.name || id}`;
+  const name = `${agentMetrics.name || serverId}`;
 
   const handleDeleteServer = async () => {
     const confirmDelete = window.confirm(
@@ -188,7 +186,7 @@ const ServerDetailPage = () => {
     if (!confirmDelete) return;
 
     try {
-      await deleteAgentServer(id);
+      await deleteAgentServer(serverId);
       navigate('/servers');
     } catch (err) {
       alert(`Failed to delete server: ${err.message}`);
@@ -203,97 +201,87 @@ const ServerDetailPage = () => {
             <button className="breadcrumb-btn" onClick={() => navigate('/servers')}>Servers</button>
             <span className="breadcrumb-sep">›</span>
             <span>{name}</span>
-            {isLocal && <span className="live-pill">● LIVE</span>}
-            {!isLocal && agentMetrics && (
-              agentMetrics.status === 'offline' ? (
-                <span className="offline-pill" style={{
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  color: '#ef4444',
-                  fontSize: '0.65rem',
-                  fontWeight: '800',
-                  padding: '1px 6px',
-                  borderRadius: 'var(--radius-full)',
-                  marginLeft: 'var(--space-2)'
-                }}>● OFFLINE</span>
-              ) : (
-                <span className="live-pill">● LIVE</span>
-              )
+            {agentMetrics.status === 'offline' ? (
+              <span className="offline-pill" style={{
+                background: 'rgba(239, 68, 68, 0.15)',
+                color: '#ef4444',
+                fontSize: '0.65rem',
+                fontWeight: '800',
+                padding: '1px 6px',
+                borderRadius: 'var(--radius-full)',
+                marginLeft: 'var(--space-2)'
+              }}>● OFFLINE</span>
+            ) : (
+              <span className="live-pill">● LIVE</span>
             )}
           </div>
           <h1 className="page-title">{name}</h1>
         </div>
 
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          {!isLocal && (
-            <button
-              onClick={handleDeleteServer}
-              style={{
-                background: 'rgba(239, 68, 68, 0.15)',
-                color: '#ef4444',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                padding: '8px 16px',
-                borderRadius: 'var(--radius-md)',
-                fontWeight: '600',
-                fontSize: 'var(--text-sm)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#ef4444';
-                e.currentTarget.style.color = '#ffffff';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
-                e.currentTarget.style.color = '#ef4444';
-              }}
-            >
-              🗑️ Delete Server
-            </button>
-          )}
+          <button
+            onClick={handleDeleteServer}
+            style={{
+              background: 'rgba(239, 68, 68, 0.15)',
+              color: '#ef4444',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              padding: '8px 16px',
+              borderRadius: 'var(--radius-md)',
+              fontWeight: '600',
+              fontSize: 'var(--text-sm)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#ef4444';
+              e.currentTarget.style.color = '#ffffff';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
+              e.currentTarget.style.color = '#ef4444';
+            }}
+          >
+            🗑️ Delete Server
+          </button>
           <button className="btn-ghost" onClick={() => navigate('/servers')}>← Back to Servers</button>
         </div>
       </div>
 
-      {isLocal && <LiveServerDetail current={localCurrent} serverId="local" />}
-      {!isLocal && agentMetrics && (
-        <>
-          {agentMetrics.status === 'offline' && (
-            <div style={{
-              background: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.2)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '16px',
-              marginBottom: '24px',
-              color: '#ef4444',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              fontSize: 'var(--text-sm)',
-              textAlign: 'left'
-            }}>
-              <span style={{ fontSize: '20px' }}>⚠️</span>
-              <div>
-                <strong>Server Offline</strong> — The agent on this server stopped sending metrics. Last heartbeat was received at {new Date(agentMetrics.timestamp).toLocaleString()}.
-              </div>
-            </div>
-          )}
-          <div style={{ opacity: agentMetrics.status === 'offline' ? 0.75 : 1, transition: 'opacity 0.3s ease' }}>
-            <LiveServerDetail current={agentMetrics} serverId={id} />
+      {agentMetrics.status === 'offline' && (
+        <div style={{
+          background: 'rgba(239, 68, 68, 0.1)',
+          border: '1px solid rgba(239, 68, 68, 0.2)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '16px',
+          marginBottom: '24px',
+          color: '#ef4444',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          fontSize: 'var(--text-sm)',
+          textAlign: 'left'
+        }}>
+          <span style={{ fontSize: '20px' }}>⚠️</span>
+          <div>
+            <strong>Server Offline</strong> — The agent on this server stopped sending metrics. Last heartbeat was received at {new Date(agentMetrics.timestamp).toLocaleString()}.
           </div>
-        </>
+        </div>
       )}
+      <div style={{ opacity: agentMetrics.status === 'offline' ? 0.75 : 1, transition: 'opacity 0.3s ease' }}>
+        <LiveServerDetail current={agentMetrics} serverId={serverId} />
+      </div>
     </PageLayout>
   );
 };
+
+export default ServerDetailPage;
 
 const formatUptime = (s) => {
   if (!s) return '—';
   const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
   return `${d}d ${h}h ${m}m`;
 };
-
-export default ServerDetailPage;
 

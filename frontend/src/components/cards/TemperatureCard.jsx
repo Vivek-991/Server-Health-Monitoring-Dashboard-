@@ -34,20 +34,21 @@ const TemperatureCard = ({ temperature: propTemp, status: propStatus }) => {
       </div>
 
       {isOffline ? (
-        <div style={{ textAlign: 'center', padding: '20px 0' }}>
-          <div style={{ fontSize: 'var(--text-3xl)', marginBottom: '8px' }}>🔴</div>
+        <div style={{ textAlign: 'center', padding: '16px 0' }}>
           <div style={{ color: 'var(--color-critical)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
-            Server Offline
+            🔴 Server Offline
           </div>
           <div style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-xs)', marginTop: '4px' }}>
             Temperature metrics unavailable
           </div>
         </div>
       ) : mainTemp === null || mainTemp === undefined ? (
-        <div style={{ textAlign: 'center', padding: '20px 0' }}>
-          <div style={{ fontSize: 'var(--text-3xl)', marginBottom: '8px' }}>🌡️</div>
-          <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)' }}>
-            Temperature not available on this system
+        <div style={{ textAlign: 'center', padding: '16px 0' }}>
+          <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+            ☁️ Cloud VM / Hypervisor
+          </div>
+          <div style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-xs)', marginTop: '4px', lineHeight: '1.4' }}>
+            Hardware thermal sensors not exposed on virtual instances
           </div>
         </div>
       ) : (
