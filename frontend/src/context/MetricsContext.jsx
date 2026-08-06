@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useReducer, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
-import { fetchLiveMetrics, fetchAgentServers } from '../api/metricsApi';
+import { fetchLiveMetrics, fetchAgentServers, fetchHistoricalMetrics } from '../api/metricsApi';
 import { useAuth } from './AuthContext';
 
 const getSocketUrl = () => {
@@ -31,6 +31,7 @@ const normalizeAgentMap = (agents = {}) =>
 const initialState = {
   current: null,
   history: [],
+  historyMap: {},
   agents: {},
   connected: false,
   loading: true,
@@ -53,8 +54,54 @@ const metricsReducer = (state, action) => {
     }
     case 'SET_INITIAL_METRICS':
       return { ...state, current: action.payload, history: [{ ...action.payload, timestamp: new Date() }], loading: false, error: null };
-    case 'SET_AGENTS':
-      return { ...state, agents: normalizeAgentMap(action.payload), loading: false };
+    case 'SET_HISTORICAL_METRICS': {
+      const snapshots = action.payload?.snapshots || [];
+      const newHistoryMap = { ...state.historyMap };
+
+      snapshots.forEach((snap) => {
+        const sId = snap.serverId || snap.server || snap.id;
+        if (sId) {
+          if (!newHistoryMap[sId]) newHistoryMap[sId] = [];
+          newHistoryMap[sId].push(snap);
+        }
+      });
+
+      Object.keys(newHistoryMap).forEach((sId) => {
+        newHistoryMap[sId] = newHistoryMap[sId].slice(-MAX_HISTORY);
+      });
+
+      return {
+        ...state,
+        historyMap: newHistoryMap,
+      };
+    }
+    case 'SET_AGENTS': {
+      const normalizedAgents = normalizeAgentMap(action.payload);
+      const newHistoryMap = { ...state.historyMap };
+
+      Object.entries(normalizedAgents).forEach(([serverId, agent]) => {
+        if (agent && agent.status !== 'offline') {
+          const existing = newHistoryMap[serverId] || [];
+          const last = existing[existing.length - 1];
+          const snapshotTime = agent.timestamp || agent.lastSeen || new Date().toISOString();
+          if (!last || last.timestamp !== snapshotTime) {
+            newHistoryMap[serverId] = [...existing, { ...agent, timestamp: snapshotTime }].slice(-MAX_HISTORY);
+          }
+        }
+      });
+
+      const agentKeys = Object.keys(normalizedAgents);
+      const firstKey = agentKeys[0];
+
+      return {
+        ...state,
+        agents: normalizedAgents,
+        historyMap: newHistoryMap,
+        current: firstKey ? normalizedAgents[firstKey] : state.current,
+        history: firstKey ? (newHistoryMap[firstKey] || []) : state.history,
+        loading: false,
+      };
+    }
     case 'RESET':
       return initialState;
     default:
@@ -71,12 +118,14 @@ export const MetricsProvider = ({ children }) => {
 
   const loadInitialMetrics = useCallback(async () => {
     try {
-      const [liveRes, agentsRes] = await Promise.all([
-        fetchLiveMetrics(),
-        fetchAgentServers().catch(() => ({ success: false, agents: {} }))
+      const [liveRes, agentsRes, historyRes] = await Promise.all([
+        fetchLiveMetrics().catch(() => ({ data: null })),
+        fetchAgentServers().catch(() => ({ success: false, agents: {} })),
+        fetchHistoricalMetrics(60).catch(() => ({ success: false, data: [] }))
       ]);
-      dispatch({ type: 'SET_INITIAL_METRICS', payload: liveRes.data });
-      if (agentsRes.success && agentsRes.agents) {
+      if (liveRes?.data) dispatch({ type: 'SET_INITIAL_METRICS', payload: liveRes.data });
+      if (historyRes?.data?.length) dispatch({ type: 'SET_HISTORICAL_METRICS', payload: { snapshots: historyRes.data } });
+      if (agentsRes?.success && agentsRes?.agents) {
         dispatch({ type: 'SET_AGENTS', payload: agentsRes.agents });
       }
     } catch (err) {

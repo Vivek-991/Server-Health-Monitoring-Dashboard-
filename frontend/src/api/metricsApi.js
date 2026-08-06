@@ -57,7 +57,11 @@ apiClient.interceptors.response.use(
 );
 
 export const fetchLiveMetrics = () => apiClient.get('/metrics/live');
-export const fetchHistoricalMetrics = (limit = 60) => apiClient.get(`/metrics/history?limit=${limit}`);
+export const fetchHistoricalMetrics = (limit = 60, serverId = '') => {
+  const query = new URLSearchParams({ limit });
+  if (serverId) query.append('serverId', serverId);
+  return apiClient.get(`/metrics/history?${query.toString()}`);
+};
 export const fetchServerStatus = () => apiClient.get('/metrics/status');
 export const fetchSmtpSettings = () => apiClient.get('/smtp');
 export const updateSmtpSettings = (config) => apiClient.post('/smtp', config);

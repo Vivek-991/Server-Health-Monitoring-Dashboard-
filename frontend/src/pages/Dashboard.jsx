@@ -27,7 +27,7 @@ import { formatBytes, formatBandwidth, toFixed } from '../utils/formatters';
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const { agents, loading, error } = useMetrics();
+  const { agents, historyMap, loading, error } = useMetrics();
   const [selectedServerId, setSelectedServerId] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -54,6 +54,11 @@ const Dashboard = () => {
     const found = remoteServerList.find((s) => s.id === selectedServerId);
     return found || remoteServerList[0];
   }, [remoteServerList, selectedServerId]);
+
+  const activeServerHistory = useMemo(() => {
+    if (!activeServer?.id) return [];
+    return historyMap[activeServer.id] || [];
+  }, [historyMap, activeServer]);
 
   const backendBaseUrl = useMemo(() => {
     const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -248,10 +253,10 @@ const Dashboard = () => {
             {/* ── Performance Charts ──────────────────────────────────── */}
             <p className="section-title">Performance Charts</p>
             <div className="charts-grid">
-              <CpuChart metrics={m} />
-              <RamChart metrics={m} />
-              <DiskChart metrics={m} />
-              <NetworkChart metrics={m} />
+              <CpuChart metrics={m} history={activeServerHistory} serverId={activeServer?.id} />
+              <RamChart metrics={m} history={activeServerHistory} serverId={activeServer?.id} />
+              <DiskChart metrics={m} history={activeServerHistory} serverId={activeServer?.id} />
+              <NetworkChart metrics={m} history={activeServerHistory} serverId={activeServer?.id} />
             </div>
 
             {/* ── System Details ──────────────────────────────────────── */}

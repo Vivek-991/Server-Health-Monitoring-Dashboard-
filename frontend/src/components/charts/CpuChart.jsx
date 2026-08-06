@@ -23,8 +23,18 @@ const CustomTooltip = ({ active, payload }) => {
   return null;
 };
 
-const CpuChart = () => {
-  const { history, cpuUsage, cpuModel, cpuCores, cpuSpeed } = useMetrics();
+const CpuChart = ({ metrics: propMetrics, history: propHistory, serverId }) => {
+  const contextMetrics = useMetrics(serverId);
+  const metrics = propMetrics || contextMetrics.current || contextMetrics;
+  const rawHistory = propHistory || contextMetrics.history || [];
+
+  const cpuUsage = metrics?.cpu?.usage ?? metrics?.cpuUsage ?? 0;
+  const cpuModel = metrics?.cpu?.model ?? metrics?.cpuModel ?? 'CPU';
+  const cpuCores = metrics?.cpu?.cores ?? metrics?.cpuCores ?? 1;
+  const cpuSpeed = metrics?.cpu?.speed ?? metrics?.cpuSpeed ?? 0;
+
+  // Build history array with fallback to current snapshot if history is empty
+  const history = rawHistory.length > 0 ? rawHistory : (metrics ? [metrics] : []);
 
   const data = history.map((snap, i) => ({
     index: i,
@@ -41,7 +51,7 @@ const CpuChart = () => {
         <div>
           <div className="chart-card-title">🖥️ CPU Usage</div>
           <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
-            {cpuModel} · {cpuCores} cores · {cpuSpeed} GHz
+            {cpuModel} · {cpuCores} cores {cpuSpeed ? `· ${cpuSpeed} GHz` : ''}
           </div>
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -57,27 +67,29 @@ const CpuChart = () => {
         </div>
       </div>
 
-      <ResponsiveContainer width="100%" height={200}>
-        <AreaChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>
-          <defs>
-            <linearGradient id="cpuGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%"  stopColor="#6384ff" stopOpacity={0.35} />
-              <stop offset="95%" stopColor="#6384ff" stopOpacity={0.02} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-          <XAxis dataKey="index" tick={false} axisLine={false} tickLine={false} />
-          <YAxis domain={[0, 100]} tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }}
-            axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
-          <Tooltip content={<CustomTooltip />} />
-          <ReferenceLine y={80} stroke="rgba(239,68,68,0.3)" strokeDasharray="4 4" />
-          <Area
-            type="monotone" dataKey="cpu"
-            stroke="#6384ff" strokeWidth={2}
-            fill="url(#cpuGrad)" dot={false} isAnimationActive={false}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
+      <div style={{ width: '100%', height: 200, minHeight: 200 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>
+            <defs>
+              <linearGradient id="cpuGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%"  stopColor="#6384ff" stopOpacity={0.35} />
+                <stop offset="95%" stopColor="#6384ff" stopOpacity={0.02} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+            <XAxis dataKey="index" tick={false} axisLine={false} tickLine={false} />
+            <YAxis domain={[0, 100]} tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }}
+              axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
+            <Tooltip content={<CustomTooltip />} />
+            <ReferenceLine y={80} stroke="rgba(239,68,68,0.3)" strokeDasharray="4 4" />
+            <Area
+              type="monotone" dataKey="cpu"
+              stroke="#6384ff" strokeWidth={2}
+              fill="url(#cpuGrad)" dot={false} isAnimationActive={false}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 };

@@ -24,8 +24,13 @@ const CustomTooltip = ({ active, payload }) => {
   return null;
 };
 
-const NetworkChart = () => {
-  const { history, network } = useMetrics();
+const NetworkChart = ({ metrics: propMetrics, history: propHistory, serverId }) => {
+  const contextMetrics = useMetrics(serverId);
+  const metrics = propMetrics || contextMetrics.current || contextMetrics;
+  const rawHistory = propHistory || contextMetrics.history || [];
+
+  const network = propMetrics?.network || contextMetrics.network || {};
+  const history = rawHistory.length > 0 ? rawHistory : (metrics ? [metrics] : []);
 
   const data = history.map((snap, i) => ({
     index: i,
@@ -52,32 +57,34 @@ const NetworkChart = () => {
         </div>
       </div>
 
-      <ResponsiveContainer width="100%" height={200}>
-        <LineChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-          <XAxis dataKey="index" tick={false} axisLine={false} tickLine={false} />
-          <YAxis tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }}
-            axisLine={false} tickLine={false}
-            tickFormatter={(v) => formatBandwidth(v)} width={60} />
-          <Tooltip content={<CustomTooltip />} />
-          <Legend
-            formatter={(value) => (
-              <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-xs)' }}>
-                {value === 'rx' ? '↓ Download' : '↑ Upload'}
-              </span>
-            )}
-            wrapperStyle={{ paddingTop: '8px' }}
-          />
-          <Line
-            type="monotone" dataKey="rx" name="rx"
-            stroke="#22c55e" strokeWidth={2} dot={false} isAnimationActive={false}
-          />
-          <Line
-            type="monotone" dataKey="tx" name="tx"
-            stroke="#6384ff" strokeWidth={2} dot={false} isAnimationActive={false}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+      <div style={{ width: '100%', height: 200, minHeight: 200 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+            <XAxis dataKey="index" tick={false} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }}
+              axisLine={false} tickLine={false}
+              tickFormatter={(v) => formatBandwidth(v)} width={60} />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend
+              formatter={(value) => (
+                <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-xs)' }}>
+                  {value === 'rx' ? '↓ Download' : '↑ Upload'}
+                </span>
+              )}
+              wrapperStyle={{ paddingTop: '8px' }}
+            />
+            <Line
+              type="monotone" dataKey="rx" name="rx"
+              stroke="#22c55e" strokeWidth={2} dot={false} isAnimationActive={false}
+            />
+            <Line
+              type="monotone" dataKey="tx" name="tx"
+              stroke="#6384ff" strokeWidth={2} dot={false} isAnimationActive={false}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 };

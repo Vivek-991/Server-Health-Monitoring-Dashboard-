@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import PageLayout from '../components/common/PageLayout';
 import { useMetricsContext } from '../context/MetricsContext';
+import { fetchHistoricalMetrics } from '../api/metricsApi';
 
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
@@ -49,25 +50,51 @@ const KPI = ({ label, value, unit, icon, color }) => (
 
 // ── Analytics Page ─────────────────────────────────────────────────────────────
 const AnalyticsPage = () => {
-  const { history } = useMetricsContext();
+  const { agents = {}, history = [], historyMap = {} } = useMetricsContext();
+  const [selectedServerId, setSelectedServerId] = useState('');
   const [range, setRange] = useState(150); // number of history points to use
+  const [fetchedHistory, setFetchedHistory] = useState([]);
 
-  const slice = useMemo(() => {
-    if (!history || history.length === 0) return [];
-    return history.slice(-range);
-  }, [history, range]);
+  const agentKeys = Object.keys(agents);
+  const activeServerId = selectedServerId || agentKeys[0] || '';
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchHistoricalMetrics(range, activeServerId)
+      .then((res) => {
+        if (isMounted && res?.data) {
+          setFetchedHistory(res.data);
+        }
+      })
+      .catch(() => {});
+    return () => { isMounted = false; };
+  }, [activeServerId, range]);
+
+  const mergedHistory = useMemo(() => {
+    const liveHistory = activeServerId ? (historyMap[activeServerId] || []) : history;
+    const combined = [...fetchedHistory, ...liveHistory];
+    const map = new Map();
+    combined.forEach((snap) => {
+      const key = snap._id || snap.timestamp || JSON.stringify(snap);
+      map.set(key, snap);
+    });
+    return Array.from(map.values()).slice(-range);
+  }, [fetchedHistory, historyMap, activeServerId, history, range]);
+
+  const slice = mergedHistory;
 
   // Transform data for Recharts
   const chartData = useMemo(() => {
     return slice.map((snap, i) => {
       const ago = (slice.length - 1 - i) * 2;
       const timeLabel = ago === 0 ? 'now' : `${ago}s`;
+      const disks = snap.disks || snap.disk || [];
       return {
         index: i,
         timeLabel,
         cpu: snap.cpu?.usage ?? 0,
         ram: snap.memory?.usagePercent ?? 0,
-        disk: snap.disks?.[0]?.usagePercent ?? 0,
+        disk: disks[0]?.usagePercent ?? 0,
         network: (snap.network?.rx_sec ?? 0) / 1024, // Convert to KB/s
       };
     });
@@ -107,9 +134,34 @@ const AnalyticsPage = () => {
       <div className="page-header">
         <div>
           <h1 className="page-title">📈 Analytics</h1>
-          <p className="page-sub">{slice.length} data points · updates every 2s</p>
+          <p className="page-sub">{slice.length} data points · updates live</p>
         </div>
-        <div className="page-header-actions">
+        <div className="page-header-actions" style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {agentKeys.length > 0 && (
+            <select
+              value={activeServerId}
+              onChange={(e) => setSelectedServerId(e.target.value)}
+              style={{
+                background: 'var(--color-bg-secondary)',
+                color: 'var(--color-text-primary)',
+                border: '1px solid var(--color-border)',
+                padding: '8px 14px',
+                borderRadius: 'var(--radius-md)',
+                fontWeight: '600',
+                fontSize: 'var(--text-sm)',
+                cursor: 'pointer',
+              }}
+            >
+              {agentKeys.map((key) => {
+                const ag = agents[key];
+                return (
+                  <option key={key} value={key}>
+                    🖥️ {ag?.name || key} ({ag?.ip || 'remote'})
+                  </option>
+                );
+              })}
+            </select>
+          )}
           <div className="range-tabs">
             {RANGES.map((r) => (
               <button key={r.val} className={`range-tab ${range === r.val ? 'active' : ''}`} onClick={() => setRange(r.val)}>

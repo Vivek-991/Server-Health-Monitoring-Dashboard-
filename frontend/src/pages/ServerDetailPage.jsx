@@ -5,6 +5,10 @@ import useMetrics from '../hooks/useMetrics';
 import { computeHealthScore } from '../utils/healthScore';
 import { formatBytes, formatBandwidth } from '../utils/formatters';
 import { deleteAgentServer } from '../api/metricsApi';
+import CpuChart from '../components/charts/CpuChart';
+import RamChart from '../components/charts/RamChart';
+import DiskChart from '../components/charts/DiskChart';
+import NetworkChart from '../components/charts/NetworkChart';
 
 // ── Helper components ─────────────────────────────────────────────────────────
 const MetricBar = ({ label, value, max = 100, unit = '%', color }) => {
@@ -43,7 +47,7 @@ const Section = ({ title, icon, children }) => (
 );
 
 // ── Live server detail (uses real MetricsContext data, compatible with remote agents) ──
-const LiveServerDetail = ({ current }) => {
+const LiveServerDetail = ({ current, serverId }) => {
   const { score, grade, color } = useMemo(() => computeHealthScore(current), [current]);
   const disk = current?.disks?.[0] || {};
   const net  = current?.network || {};
@@ -134,6 +138,16 @@ const LiveServerDetail = ({ current }) => {
             </div>
           )}
         </Section>
+      </div>
+
+      <div style={{ marginTop: '24px' }}>
+        <p className="section-title">Performance Charts</p>
+        <div className="charts-grid">
+          <CpuChart metrics={current} serverId={serverId} />
+          <RamChart metrics={current} serverId={serverId} />
+          <DiskChart metrics={current} serverId={serverId} />
+          <NetworkChart metrics={current} serverId={serverId} />
+        </div>
       </div>
     </>
   );
@@ -243,7 +257,7 @@ const ServerDetailPage = () => {
         </div>
       </div>
 
-      {isLocal && <LiveServerDetail current={localCurrent} />}
+      {isLocal && <LiveServerDetail current={localCurrent} serverId="local" />}
       {!isLocal && agentMetrics && (
         <>
           {agentMetrics.status === 'offline' && (
@@ -267,7 +281,7 @@ const ServerDetailPage = () => {
             </div>
           )}
           <div style={{ opacity: agentMetrics.status === 'offline' ? 0.75 : 1, transition: 'opacity 0.3s ease' }}>
-            <LiveServerDetail current={agentMetrics} />
+            <LiveServerDetail current={agentMetrics} serverId={id} />
           </div>
         </>
       )}

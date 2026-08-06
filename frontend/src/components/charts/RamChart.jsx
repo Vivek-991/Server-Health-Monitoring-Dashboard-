@@ -27,8 +27,17 @@ const CustomTooltip = ({ active, payload }) => {
   return null;
 };
 
-const RamChart = () => {
-  const { history, memPercent, memTotal, memUsed, memFree } = useMetrics();
+const RamChart = ({ metrics: propMetrics, history: propHistory, serverId }) => {
+  const contextMetrics = useMetrics(serverId);
+  const metrics = propMetrics || contextMetrics.current || contextMetrics;
+  const rawHistory = propHistory || contextMetrics.history || [];
+
+  const memPercent = metrics?.memory?.usagePercent ?? contextMetrics.memPercent ?? 0;
+  const memTotal = metrics?.memory?.total ?? contextMetrics.memTotal ?? 0;
+  const memUsed = metrics?.memory?.used ?? contextMetrics.memUsed ?? 0;
+  const memFree = metrics?.memory?.free ?? contextMetrics.memFree ?? (memTotal - memUsed);
+
+  const history = rawHistory.length > 0 ? rawHistory : (metrics ? [metrics] : []);
 
   const data = history.map((snap, i) => ({
     index: i,
@@ -58,26 +67,28 @@ const RamChart = () => {
         </div>
       </div>
 
-      <ResponsiveContainer width="100%" height={200}>
-        <AreaChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>
-          <defs>
-            <linearGradient id="ramGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%"  stopColor="#00d4ff" stopOpacity={0.35} />
-              <stop offset="95%" stopColor="#00d4ff" stopOpacity={0.02} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-          <XAxis dataKey="index" tick={false} axisLine={false} tickLine={false} />
-          <YAxis domain={[0, 100]} tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }}
-            axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
-          <Tooltip content={<CustomTooltip />} />
-          <Area
-            type="monotone" dataKey="ram"
-            stroke="#00d4ff" strokeWidth={2}
-            fill="url(#ramGrad)" dot={false} isAnimationActive={false}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
+      <div style={{ width: '100%', height: 200, minHeight: 200 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>
+            <defs>
+              <linearGradient id="ramGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%"  stopColor="#00d4ff" stopOpacity={0.35} />
+                <stop offset="95%" stopColor="#00d4ff" stopOpacity={0.02} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+            <XAxis dataKey="index" tick={false} axisLine={false} tickLine={false} />
+            <YAxis domain={[0, 100]} tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }}
+              axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
+            <Tooltip content={<CustomTooltip />} />
+            <Area
+              type="monotone" dataKey="ram"
+              stroke="#00d4ff" strokeWidth={2}
+              fill="url(#ramGrad)" dot={false} isAnimationActive={false}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 };

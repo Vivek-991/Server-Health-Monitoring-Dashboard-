@@ -40,15 +40,17 @@ const CustomTooltip = ({ active, payload }) => {
   return null;
 };
 
-const DiskChart = () => {
-  const { disks } = useMetrics();
+const DiskChart = ({ metrics: propMetrics, serverId }) => {
+  const contextMetrics = useMetrics(serverId);
+  const metrics = propMetrics || contextMetrics.current || contextMetrics;
+  const disks = propMetrics?.disks || propMetrics?.disk || contextMetrics.disks || [];
 
   const data = disks.map((d) => ({
-    mount: d.mount || d.fs,
-    usagePercent: d.usagePercent,
-    used: d.used,
-    size: d.size,
-    severity: getSeverityColor(d.usagePercent),
+    mount: d.mount || d.fs || '/',
+    usagePercent: d.usagePercent ?? 0,
+    used: d.used ?? 0,
+    size: d.size ?? 0,
+    severity: getSeverityColor(d.usagePercent ?? 0),
   }));
 
   return (
@@ -62,7 +64,7 @@ const DiskChart = () => {
         </div>
         {disks.length > 0 && (
           <span className="chart-card-badge" style={{ background: 'rgba(34,197,94,0.1)', color: '#22c55e' }}>
-            {formatBytes(disks.reduce((s, d) => s + d.used, 0))} used
+            {formatBytes(disks.reduce((s, d) => s + (d.used || 0), 0))} used
           </span>
         )}
       </div>
@@ -72,21 +74,23 @@ const DiskChart = () => {
           No disk data available
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: -20 }} barSize={32}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-            <XAxis dataKey="mount" tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }}
-              axisLine={false} tickLine={false} />
-            <YAxis domain={[0, 100]} tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }}
-              axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
-            <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="usagePercent" radius={[4, 4, 0, 0]}>
-              {data.map((entry, i) => (
-                <Cell key={i} fill={SEVERITY_COLORS[entry.severity]} fillOpacity={0.85} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+        <div style={{ width: '100%', height: 200, minHeight: 200 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: -20 }} barSize={32}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+              <XAxis dataKey="mount" tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }}
+                axisLine={false} tickLine={false} />
+              <YAxis domain={[0, 100]} tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }}
+                axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar dataKey="usagePercent" radius={[4, 4, 0, 0]}>
+                {data.map((entry, i) => (
+                  <Cell key={i} fill={SEVERITY_COLORS[entry.severity] || '#22c55e'} fillOpacity={0.85} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       )}
 
       {/* Disk list below chart */}
