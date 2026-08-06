@@ -49,12 +49,7 @@ const initMetricsSocket = (io) => {
       }
 
       // Always broadcast user-specific remote server updates to authenticated sockets
-      io.sockets.sockets.forEach((socket) => {
-        const userId = socket.data?.userId;
-        if (userId) {
-          socket.emit('metrics:update:agents', metricsController.getAgentsForUser(userId));
-        }
-      });
+      await metricsController.emitAgentUpdates(io);
     } catch (error) {
       logger.error('Socket agent broadcast error:', error.message);
     }
@@ -70,7 +65,9 @@ const initMetricsSocket = (io) => {
 
     // Send this user's remote server agents immediately on connect
     if (userId) {
-      socket.emit('metrics:update:agents', metricsController.getAgentsForUser(userId));
+      metricsController.getAgentsForUserAsync(userId)
+        .then((agents) => socket.emit('metrics:update:agents', agents))
+        .catch((err) => logger.warn('Socket connect agent fetch error:', err.message));
     }
 
     socket.on('disconnect', () => {
