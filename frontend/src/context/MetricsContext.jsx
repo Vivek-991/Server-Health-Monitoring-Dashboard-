@@ -4,10 +4,19 @@ import { fetchLiveMetrics, fetchAgentServers, fetchHistoricalMetrics } from '../
 import { useAuth } from './AuthContext';
 
 const getSocketUrl = () => {
+  const envSocketUrl = process.env.REACT_APP_SOCKET_URL || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SOCKET_URL);
+  if (envSocketUrl) return envSocketUrl;
+
   if (typeof window !== 'undefined') {
+    const isLocalhost = Boolean(
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.hostname === '[::1]'
+    );
+    if (isLocalhost) return 'http://localhost:5000';
     return window.location.origin;
   }
-  return process.env.REACT_APP_SOCKET_URL || 'http://127.0.0.1:5000';
+  return 'http://localhost:5000';
 };
 
 const SOCKET_URL = getSocketUrl();

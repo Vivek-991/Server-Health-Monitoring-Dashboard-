@@ -7,7 +7,9 @@ const getToken = () => localStorage.getItem(TOKEN_KEY);
 const getUser = () => { try { return JSON.parse(localStorage.getItem(USER_KEY)); } catch { return null; } };
 
 const getApiBaseUrl = () => {
-  if (process.env.REACT_APP_API_URL) return process.env.REACT_APP_API_URL;
+  const envUrl = process.env.REACT_APP_API_URL || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL);
+  if (envUrl) return envUrl;
+
   if (typeof window !== 'undefined') {
     const isLocalhost = Boolean(
       window.location.hostname === 'localhost' ||

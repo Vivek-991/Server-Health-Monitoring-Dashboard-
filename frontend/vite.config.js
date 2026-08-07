@@ -21,8 +21,8 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       // Compatibility fallback for process.env in CRA code
-      'process.env.REACT_APP_API_URL': JSON.stringify(env.REACT_APP_API_URL || 'http://localhost:5000/api'),
-      'process.env.REACT_APP_SOCKET_URL': JSON.stringify(env.REACT_APP_SOCKET_URL || 'http://localhost:5000'),
+      'process.env.REACT_APP_API_URL': JSON.stringify(env.REACT_APP_API_URL || env.VITE_API_URL || ''),
+      'process.env.REACT_APP_SOCKET_URL': JSON.stringify(env.REACT_APP_SOCKET_URL || env.VITE_SOCKET_URL || ''),
       'process.env.NODE_ENV': JSON.stringify(mode),
     },
   };

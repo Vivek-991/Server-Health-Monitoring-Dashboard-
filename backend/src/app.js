@@ -153,14 +153,17 @@ fi
 });
 
 // ── Frontend static serving ───────────────────────────────────────────────────
+const frontendDistPath = path.join(__dirname, '../../frontend/dist');
 const frontendBuildPath = path.join(__dirname, '../../frontend/build');
-if (fs.existsSync(frontendBuildPath)) {
-  app.use(express.static(frontendBuildPath));
+const staticPath = fs.existsSync(frontendDistPath) ? frontendDistPath : (fs.existsSync(frontendBuildPath) ? frontendBuildPath : null);
+
+if (staticPath) {
+  app.use(express.static(staticPath));
   app.get('/{*path}', (req, res, next) => {
     if (req.originalUrl.startsWith('/api') || req.originalUrl === '/agent.py' || req.originalUrl === '/install.sh') {
       return next();
     }
-    res.sendFile(path.join(frontendBuildPath, 'index.html'));
+    res.sendFile(path.join(staticPath, 'index.html'));
   });
 } else {
   app.get('/', (_req, res) => {

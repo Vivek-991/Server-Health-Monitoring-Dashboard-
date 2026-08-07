@@ -31,6 +31,8 @@ const io = new Server(httpServer, {
       if (
         /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ||
         /\.vercel\.app$/.test(origin) ||
+        /\.onrender\.com$/.test(origin) ||
+        /\.netlify\.app$/.test(origin) ||
         allowed.includes(origin) ||
         process.env.NODE_ENV !== 'production'
       ) {
