@@ -1,0 +1,169 @@
+/* ── Modern Animated Theme Toggle ────────────────────────────────────────────── */
+
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  background: transparent;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.theme-toggle-btn:hover {
+  transform: scale(1.06);
+}
+
+.theme-toggle-btn:active {
+  transform: scale(0.96);
+}
+
+/* Track container */
+.theme-toggle-track {
+  position: relative;
+  width: 58px;
+  height: 30px;
+  border-radius: 30px;
+  padding: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1.5px solid var(--color-border-strong, rgba(255, 255, 255, 0.15));
+  transition: background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Track backgrounds per mode */
+.theme-toggle-btn.is-dark .theme-toggle-track {
+  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6), 0 0 12px rgba(99, 102, 241, 0.25);
+}
+
+.theme-toggle-btn.is-light .theme-toggle-track {
+  background: linear-gradient(135deg, #fbbf24 0%, #f97316 100%);
+  border-color: rgba(251, 191, 36, 0.5);
+  box-shadow: inset 0 2px 6px rgba(180, 83, 9, 0.3), 0 0 14px rgba(245, 158, 11, 0.35);
+}
+
+/* Background icons inside track */
+.track-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  font-size: 14px;
+  z-index: 1;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.track-sun {
+  margin-left: 2px;
+  color: #fff;
+  opacity: 0.85;
+}
+
+.track-moon {
+  margin-right: 2px;
+  color: #c7d2fe;
+  opacity: 0.85;
+}
+
+.theme-toggle-btn.is-dark .track-moon {
+  opacity: 0;
+  transform: scale(0.6);
+}
+
+.theme-toggle-btn.is-light .track-sun {
+  opacity: 0;
+  transform: scale(0.6);
+}
+
+/* Sliding Knob */
+.theme-toggle-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.4s ease, box-shadow 0.4s ease;
+}
+
+/* Knob positions & glowing effects */
+.theme-toggle-btn.is-dark .theme-toggle-knob {
+  transform: translateX(28px);
+  background: linear-gradient(135deg, #ffffff 0%, #e0e7ff 100%);
+  box-shadow: 0 0 10px rgba(129, 140, 248, 0.9), inset 0 -1px 2px rgba(99, 102, 241, 0.4);
+}
+
+.theme-toggle-btn.is-light .theme-toggle-knob {
+  transform: translateX(0px);
+  background: linear-gradient(135deg, #ffffff 0%, #fffbeb 100%);
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.9), inset 0 -1px 2px rgba(245, 158, 11, 0.4);
+}
+
+/* Icon inside Knob with rotation & scale morphing */
+.knob-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  animation: knobPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.active-icon {
+  font-size: 13px;
+  stroke-width: 2.2;
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.3s ease;
+}
+
+.moon-icon {
+  color: #4f46e5;
+  filter: drop-shadow(0 0 2px rgba(79, 70, 229, 0.5));
+}
+
+.sun-icon {
+  color: #d97706;
+  filter: drop-shadow(0 0 2px rgba(217, 119, 6, 0.5));
+}
+
+/* Hover rotation keyframe animation */
+.theme-toggle-btn:hover .active-icon {
+  transform: rotate(45deg) scale(1.15);
+}
+
+.theme-toggle-btn:active .active-icon {
+  transform: rotate(90deg) scale(0.9);
+}
+
+@keyframes knobPop {
+  0% {
+    transform: scale(0.5) rotate(-180deg);
+  }
+  70% {
+    transform: scale(1.2) rotate(20deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* Optional label style */
+.theme-toggle-label {
+  font-size: var(--text-xs, 12px);
+  font-weight: 600;
+  color: var(--color-text-secondary, #94a3b8);
+  letter-spacing: 0.3px;
+}

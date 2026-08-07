@@ -11,6 +11,7 @@ import './styles/index.css';
 import './styles/components.css';
 import './styles/pages.css';
 import './styles/dashboard.css';
+import './styles/themeToggle.css';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));

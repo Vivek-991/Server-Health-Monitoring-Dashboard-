@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useTheme } from '../../context/ThemeContext';
 import { useAlerts } from '../../context/AlertsContext';
 import NotificationPanel from './NotificationPanel';
+import ThemeToggle from './ThemeToggle';
 
 const Navbar = () => {
-  const { theme, toggleTheme } = useTheme();
   const { unreadCount } = useAlerts();
   const [time, setTime] = useState(new Date());
   const [notifOpen, setNotifOpen] = useState(false);
@@ -30,8 +29,6 @@ const Navbar = () => {
   const formatDate = (d) =>
     d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 
-  const isDark = theme === 'dark';
-
   return (
     <>
       <nav className="navbar">
@@ -42,17 +39,7 @@ const Navbar = () => {
           <span className="navbar-time">{formatDate(time)} &nbsp;|&nbsp; {formatTime(time)}</span>
 
           {/* ── Theme Toggle ──────────────────────────────────────── */}
-          <button
-            className="theme-toggle-btn"
-            onClick={toggleTheme}
-            title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            aria-label="Toggle theme"
-          >
-            <span className="theme-toggle-track">
-              <span className={`theme-toggle-thumb ${isDark ? 'dark' : 'light'}`} />
-            </span>
-            <span className="theme-toggle-icon">{isDark ? '🌙' : '☀️'}</span>
-          </button>
+          <ThemeToggle />
 
           {/* ── Notification Bell ─────────────────────────────────── */}
           <button
