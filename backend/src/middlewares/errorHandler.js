@@ -21,6 +21,15 @@ const errorHandler = (err, req, res, _next) => {
     return res.status(400).json({ success: false, statusCode: 400, message: 'Invalid ID format', code: 'INVALID_ID' });
   }
 
+  if (err.name === 'MongooseError' || (err.message && (err.message.includes('initial connection is complete') || err.message.includes('bufferCommands')))) {
+    return res.status(503).json({
+      success: false,
+      statusCode: 503,
+      message: 'Database connection unavailable. Please verify MONGO_URI in backend/.env or ensure MongoDB is running.',
+      code: 'DB_DISCONNECTED',
+    });
+  }
+
   res.status(statusCode).json({
     success: false,
     statusCode,

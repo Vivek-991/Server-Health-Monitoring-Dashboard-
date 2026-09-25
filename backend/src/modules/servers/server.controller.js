@@ -11,6 +11,17 @@ class ServerController {
 
   async listServers(req, res, next) {
     try {
+      const { isDBConnected } = require('../../config/db');
+      if (!isDBConnected()) {
+        return res.status(200).json({
+          success: true,
+          count: 0,
+          total: 0,
+          page: 1,
+          pages: 1,
+          data: [],
+        });
+      }
       const { status, page = 1, limit = 20 } = req.query;
       const userId = req.user._id || req.user.id;
       const filter = { user: userId, isActive: true };

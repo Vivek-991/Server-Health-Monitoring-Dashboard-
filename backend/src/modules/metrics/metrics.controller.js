@@ -105,6 +105,9 @@ class MetricsController {
 
   getHistoricalMetrics = async (req, res, next) => {
     try {
+      if (!isDBConnected()) {
+        return res.status(200).json({ success: true, count: 0, data: [] });
+      }
       const limit = Math.min(parseInt(req.query.limit, 10) || 60, 500);
       const userId = req.user?._id || req.user?.id;
       const { serverId } = req.query;

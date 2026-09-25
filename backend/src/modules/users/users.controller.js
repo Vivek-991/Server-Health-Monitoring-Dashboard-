@@ -1,11 +1,19 @@
 const User = require('../../models/User');
 const { AppError } = require('../../utils/AppError');
 const logger = require('../../utils/logger');
+const { isDBConnected } = require('../../config/db');
 
 class UsersController {
   // GET /api/users - List all users
   getUsers = async (req, res, next) => {
     try {
+      if (!isDBConnected()) {
+        return res.status(200).json({
+          success: true,
+          count: 0,
+          data: [],
+        });
+      }
       const users = await User.find().select('-password').sort({ createdAt: -1 });
       res.status(200).json({
         success: true,
