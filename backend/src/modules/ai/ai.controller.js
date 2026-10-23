@@ -90,6 +90,7 @@ class AiController {
       }
 
       const telemetry = await this.resolveServerTelemetry(userId, serverId, serverContext);
+      const reply = await aiService.chatWithAgent(messages, telemetry);
       const replyContent = typeof reply === 'object' && reply !== null && reply.content ? reply.content : String(reply || '');
       const isDisabled = Boolean(typeof reply === 'object' && reply !== null && reply.disabled);
 
