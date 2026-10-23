@@ -90,13 +90,15 @@ class AiController {
       }
 
       const telemetry = await this.resolveServerTelemetry(userId, serverId, serverContext);
-      const reply = await aiService.chatWithAgent(messages, telemetry);
+      const replyContent = typeof reply === 'object' && reply !== null && reply.content ? reply.content : String(reply || '');
+      const isDisabled = Boolean(typeof reply === 'object' && reply !== null && reply.disabled);
 
       res.status(200).json({
         success: true,
+        disabled: isDisabled,
         message: {
           role: 'assistant',
-          content: reply,
+          content: replyContent,
           timestamp: new Date().toISOString(),
         },
       });
@@ -138,6 +140,7 @@ class AiController {
       res.status(200).json({
         success: true,
         config: {
+          enabled: cfg.enabled !== false,
           provider: cfg.provider,
           geminiModel: cfg.geminiModel,
           openaiModel: cfg.openaiModel,
@@ -155,8 +158,11 @@ class AiController {
   // ── POST /api/ai/config ───────────────────────────────────────────────────
   updateConfig = async (req, res, next) => {
     try {
-      const { provider, apiKey, geminiModel, openaiModel, temperature } = req.body || {};
+      const { enabled, provider, apiKey, geminiModel, openaiModel, temperature } = req.body || {};
 
+      if (typeof enabled === 'boolean') {
+        aiService.aiConfig.enabled = enabled;
+      }
       if (provider) {
         aiService.aiConfig.provider = provider;
       }
@@ -178,6 +184,7 @@ class AiController {
         success: true,
         message: 'AI Agent configuration updated successfully.',
         config: {
+          enabled: cfg.enabled !== false,
           provider: cfg.provider,
           geminiModel: cfg.geminiModel,
           openaiModel: cfg.openaiModel,

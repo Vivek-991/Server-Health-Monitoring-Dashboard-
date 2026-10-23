@@ -49,6 +49,7 @@ const SettingsPage = () => {
 
   // AI Agent form states
   const [aiForm, setAiForm] = useState({
+    enabled: true,
     provider: 'builtin',
     apiKey: '',
     geminiModel: 'gemini-2.5-flash',
@@ -71,14 +72,17 @@ const SettingsPage = () => {
         try {
           const res = await aiApi.getConfig();
           if (res.success && res.config) {
+            const isEnabled = res.config.enabled !== false;
             setAiForm((prev) => ({
               ...prev,
+              enabled: isEnabled,
               provider: res.config.provider || 'builtin',
               geminiModel: res.config.geminiModel || 'gemini-2.5-flash',
               openaiModel: res.config.openaiModel || 'gpt-4o-mini',
               maskedApiKey: res.config.maskedApiKey || '',
               hasApiKey: res.config.hasApiKey || false,
             }));
+            localStorage.setItem('monitorx_ai_enabled', String(isEnabled));
           }
         } catch (err) {
           setAiError('Failed to load AI settings: ' + err.message);
@@ -90,6 +94,24 @@ const SettingsPage = () => {
     }
   }, [activeTab]);
 
+  const handleToggleAiEnabled = async () => {
+    const nextVal = !aiForm.enabled;
+    setAiForm((prev) => ({ ...prev, enabled: nextVal }));
+    setAiSuccess('');
+    setAiError('');
+    try {
+      const res = await aiApi.updateConfig({ enabled: nextVal });
+      if (res.success) {
+        localStorage.setItem('monitorx_ai_enabled', String(nextVal));
+        window.dispatchEvent(new CustomEvent('ai-config-changed', { detail: { enabled: nextVal } }));
+        setAiSuccess(`AI SRE Agent is now ${nextVal ? 'ENABLED' : 'DISABLED'}.`);
+        addLog('system', `AI Agent ${nextVal ? 'enabled' : 'disabled'}`, user?.email);
+      }
+    } catch (err) {
+      setAiError(`Failed to update AI Agent status: ${err.message}`);
+    }
+  };
+
   const handleSaveAi = async (e) => {
     e.preventDefault();
     setAiSuccess('');
@@ -97,12 +119,15 @@ const SettingsPage = () => {
     setAiSaving(true);
     try {
       const res = await aiApi.updateConfig({
+        enabled: aiForm.enabled,
         provider: aiForm.provider,
         apiKey: aiForm.apiKey,
         geminiModel: aiForm.geminiModel,
         openaiModel: aiForm.openaiModel,
       });
       if (res.success) {
+        localStorage.setItem('monitorx_ai_enabled', String(res.config.enabled !== false));
+        window.dispatchEvent(new CustomEvent('ai-config-changed', { detail: { enabled: res.config.enabled !== false } }));
         setAiSuccess('AI Agent configuration updated successfully!');
         setAiForm((prev) => ({
           ...prev,
@@ -420,6 +445,51 @@ const SettingsPage = () => {
 
               {aiSuccess && <div className="auth-success-pill mb-4">{aiSuccess}</div>}
               {aiError && <div className="auth-error mb-4">{aiError}</div>}
+
+              {/* ── AI Agent Master Enable / Disable Toggle Card ── */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '16px 20px',
+                  background: aiForm.enabled ? 'rgba(99, 132, 255, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                  border: `1px solid ${aiForm.enabled ? 'rgba(99, 132, 255, 0.25)' : 'rgba(239, 68, 68, 0.25)'}`,
+                  borderRadius: 'var(--radius-lg)',
+                  marginBottom: '24px',
+                  flexWrap: 'wrap',
+                  gap: '12px',
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 'var(--text-base)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '1rem' }}>{aiForm.enabled ? '🟢' : '🔴'}</span>
+                    <span>AI SRE Agent Master Status: <strong style={{ color: aiForm.enabled ? '#22c55e' : '#ef4444' }}>{aiForm.enabled ? 'ENABLED' : 'DISABLED'}</strong></span>
+                  </div>
+                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+                    {aiForm.enabled
+                      ? 'Autonomous diagnostics, real-time remediation playbooks, and the global AI drawer are active.'
+                      : 'AI SRE Agent is paused. No AI tokens will be used, and AI drawer triggers are deactivated.'}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleToggleAiEnabled}
+                  style={{
+                    padding: '8px 20px',
+                    borderRadius: 'var(--radius-full)',
+                    fontWeight: 700,
+                    fontSize: 'var(--text-xs)',
+                    cursor: 'pointer',
+                    background: aiForm.enabled ? 'rgba(239, 68, 68, 0.2)' : 'rgba(34, 197, 94, 0.2)',
+                    color: aiForm.enabled ? '#ef4444' : '#22c55e',
+                    border: `1px solid ${aiForm.enabled ? 'rgba(239, 68, 68, 0.4)' : 'rgba(34, 197, 94, 0.4)'}`,
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  {aiForm.enabled ? '🔴 Turn OFF AI Agent' : '🟢 Turn ON AI Agent'}
+                </button>
+              </div>
 
               {aiLoading ? (
                 <p className="text-muted">Loading AI settings...</p>

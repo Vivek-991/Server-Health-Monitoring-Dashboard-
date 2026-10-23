@@ -84,7 +84,16 @@ const AiAdvisorPage = () => {
 
   // Settings Modal State
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
-  const [aiConfig, setAiConfig] = useState({ provider: 'builtin', apiKey: '', geminiModel: 'gemini-2.5-flash', openaiModel: 'gpt-4o-mini' });
+  const [aiConfig, setAiConfig] = useState({
+    enabled: (() => {
+      const cached = localStorage.getItem('monitorx_ai_enabled');
+      return cached === null ? true : cached === 'true';
+    })(),
+    provider: 'builtin',
+    apiKey: '',
+    geminiModel: 'gemini-2.5-flash',
+    openaiModel: 'gpt-4o-mini',
+  });
   const [configSaving, setConfigSaving] = useState(false);
   const [testResult, setTestResult] = useState(null);
 
@@ -95,22 +104,33 @@ const AiAdvisorPage = () => {
     }
   }, [activeServer?.id]);
 
-  // Load AI configuration on mount
+  // Load AI configuration on mount & listen to cross-component sync
   useEffect(() => {
     aiApi.getConfig()
       .then((res) => {
         if (res.success && res.config) {
+          const isEnabled = res.config.enabled !== false;
           setAiConfig((prev) => ({
             ...prev,
+            enabled: isEnabled,
             provider: res.config.provider || 'builtin',
             geminiModel: res.config.geminiModel || 'gemini-2.5-flash',
             openaiModel: res.config.openaiModel || 'gpt-4o-mini',
             maskedApiKey: res.config.maskedApiKey || '',
             hasApiKey: res.config.hasApiKey,
           }));
+          localStorage.setItem('monitorx_ai_enabled', String(isEnabled));
         }
       })
       .catch(() => {});
+
+    const onConfigChange = (e) => {
+      if (typeof e.detail?.enabled === 'boolean') {
+        setAiConfig((prev) => ({ ...prev, enabled: e.detail.enabled }));
+      }
+    };
+    window.addEventListener('ai-config-changed', onConfigChange);
+    return () => window.removeEventListener('ai-config-changed', onConfigChange);
   }, []);
 
   // Auto-scroll chat to bottom
@@ -118,9 +138,41 @@ const AiAdvisorPage = () => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, chatLoading]);
 
+  // Toggle AI Agent enabled / disabled status
+  const handleToggleAiEnabled = async () => {
+    const nextVal = !aiConfig.enabled;
+    setAiConfig((prev) => ({ ...prev, enabled: nextVal }));
+    try {
+      const res = await aiApi.updateConfig({ enabled: nextVal });
+      if (res.success) {
+        localStorage.setItem('monitorx_ai_enabled', String(nextVal));
+        window.dispatchEvent(new CustomEvent('ai-config-changed', { detail: { enabled: nextVal } }));
+        if (nextVal) {
+          runDiagnosis();
+        }
+      }
+    } catch (err) {
+      console.error('Failed to toggle AI state:', err);
+    }
+  };
+
   // Run Diagnosis
   const runDiagnosis = async () => {
     if (!activeServer) return;
+    if (aiConfig.enabled === false) {
+      setDiagnosis({
+        disabled: true,
+        healthScore: 100,
+        statusLevel: 'healthy',
+        riskLevel: 'Disabled',
+        summary: 'AI SRE Agent is currently disabled. Click "⚡ Turn ON AI Agent" to activate live telemetry diagnosis.',
+        anomalies: ['AI SRE Copilot is currently paused/disabled.'],
+        recommendations: [],
+        timestamp: new Date().toISOString(),
+        engine: 'disabled',
+      });
+      return;
+    }
     setDiagnosing(true);
     try {
       const payload = {
@@ -142,6 +194,24 @@ const AiAdvisorPage = () => {
   const handleSendMessage = async (customPrompt) => {
     const text = customPrompt || inputMessage;
     if (!text.trim() || chatLoading) return;
+
+    if (aiConfig.enabled === false) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'user',
+          content: text.trim(),
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+        {
+          role: 'assistant',
+          content: '⚠️ **The MonitorX AI SRE Copilot is currently disabled.**\n\nPlease enable it using the toggle button above or in **Settings ➔ 🤖 AI Agent** to resume live troubleshooting and playbooks.',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+      if (!customPrompt) setInputMessage('');
+      return;
+    }
 
     const userMsg = {
       role: 'user',
@@ -231,14 +301,19 @@ const AiAdvisorPage = () => {
     setConfigSaving(true);
     try {
       const res = await aiApi.updateConfig({
+        enabled: aiConfig.enabled,
         provider: aiConfig.provider,
         apiKey: aiConfig.apiKey,
         geminiModel: aiConfig.geminiModel,
         openaiModel: aiConfig.openaiModel,
       });
       if (res.success) {
+        const isEnabled = res.config.enabled !== false;
+        localStorage.setItem('monitorx_ai_enabled', String(isEnabled));
+        window.dispatchEvent(new CustomEvent('ai-config-changed', { detail: { enabled: isEnabled } }));
         setAiConfig((prev) => ({
           ...prev,
+          enabled: isEnabled,
           apiKey: '',
           hasApiKey: res.config.hasApiKey,
           maskedApiKey: res.config.maskedApiKey,
@@ -301,9 +376,21 @@ const AiAdvisorPage = () => {
             <div>
               <h1 className="ai-header-title">
                 AI SRE Advisor & Systems Agent
-                <span className="ai-engine-pill">
-                  <span className="ai-engine-dot" />
-                  {diagnosis?.engine ? diagnosis.engine.toUpperCase() : 'BUILTIN-SRE'}
+                <span
+                  className="ai-engine-pill"
+                  style={{
+                    borderColor: aiConfig.enabled ? undefined : 'rgba(239, 68, 68, 0.45)',
+                    background: aiConfig.enabled ? undefined : 'rgba(239, 68, 68, 0.12)',
+                    color: aiConfig.enabled ? undefined : '#fca5a5',
+                  }}
+                >
+                  <span
+                    className="ai-engine-dot"
+                    style={{ background: aiConfig.enabled ? undefined : '#ef4444' }}
+                  />
+                  {aiConfig.enabled
+                    ? (diagnosis?.engine ? diagnosis.engine.toUpperCase() : 'BUILTIN-SRE')
+                    : 'AGENT DISABLED'}
                 </span>
               </h1>
               <p className="ai-header-subtitle">
@@ -337,6 +424,30 @@ const AiAdvisorPage = () => {
                 ))}
               </select>
             )}
+
+            {/* Quick Master Toggle */}
+            <button
+              onClick={handleToggleAiEnabled}
+              className="btn"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '9px 15px',
+                borderRadius: 'var(--radius-md)',
+                fontWeight: 700,
+                fontSize: 'var(--text-sm)',
+                cursor: 'pointer',
+                background: aiConfig.enabled ? 'rgba(239, 68, 68, 0.12)' : 'rgba(34, 197, 94, 0.18)',
+                color: aiConfig.enabled ? '#fca5a5' : '#86efac',
+                border: `1px solid ${aiConfig.enabled ? 'rgba(239, 68, 68, 0.35)' : 'rgba(34, 197, 94, 0.45)'}`,
+                transition: 'all 0.2s ease',
+              }}
+              title={aiConfig.enabled ? 'Click to disable AI evaluations and pause token consumption' : 'Click to activate AI SRE Agent'}
+            >
+              <span>{aiConfig.enabled ? '⏸️' : '⚡'}</span>
+              <span>{aiConfig.enabled ? 'Disable AI' : 'Enable AI'}</span>
+            </button>
 
             {/* Re-analyze Button */}
             <button
@@ -377,6 +488,58 @@ const AiAdvisorPage = () => {
             </button>
           </div>
         </div>
+
+        {/* ── AI Disabled Master Notice Banner ──────────────────────────────── */}
+        {!aiConfig.enabled && (
+          <div
+            style={{
+              background: 'linear-gradient(90deg, rgba(239, 68, 68, 0.12), rgba(245, 158, 11, 0.1))',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '16px 20px',
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '16px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <span style={{ fontSize: '2rem' }}>⏸️</span>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 'var(--text-base)', color: '#fca5a5', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  AI Agent is Currently Disabled
+                  <span style={{ fontSize: '0.72rem', background: 'rgba(239, 68, 68, 0.25)', color: '#f87171', padding: '2px 8px', borderRadius: '999px', border: '1px solid rgba(239, 68, 68, 0.4)', fontWeight: 800 }}>
+                    OFFLINE
+                  </span>
+                </div>
+                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)', marginTop: '3px' }}>
+                  Autonomous telemetry diagnostics, copilot chat, and automated runbooks are paused to conserve API tokens and system resources.
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={handleToggleAiEnabled}
+              className="btn btn-primary"
+              style={{
+                background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                color: '#fff',
+                border: 'none',
+                fontWeight: 700,
+                padding: '10px 20px',
+                borderRadius: 'var(--radius-md)',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 4px 14px rgba(34, 197, 94, 0.3)',
+              }}
+            >
+              <span>⚡</span> Turn ON AI Agent
+            </button>
+          </div>
+        )}
 
         {/* ── Mini Real-Time Telemetry Bar ──────────────────────────────────── */}
         <div className="ai-metrics-bar">
@@ -751,6 +914,45 @@ const AiAdvisorPage = () => {
               </div>
 
               <form onSubmit={handleSaveConfig}>
+                {/* Master Status Card */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '14px 16px',
+                    borderRadius: 'var(--radius-md)',
+                    background: aiConfig.enabled ? 'rgba(34, 197, 94, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                    border: `1px solid ${aiConfig.enabled ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                    marginBottom: '18px',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: aiConfig.enabled ? '#4ade80' : '#f87171' }}>
+                      {aiConfig.enabled ? '🟢 AI SRE Agent is ACTIVE' : '🔴 AI SRE Agent is DISABLED'}
+                    </div>
+                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
+                      {aiConfig.enabled ? 'Live telemetry diagnostics and chat copilot are active.' : 'LLM token consumption is halted and evaluations are paused.'}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAiConfig((prev) => ({ ...prev, enabled: !prev.enabled }))}
+                    style={{
+                      background: aiConfig.enabled ? 'rgba(239, 68, 68, 0.18)' : 'rgba(34, 197, 94, 0.2)',
+                      color: aiConfig.enabled ? '#f87171' : '#4ade80',
+                      border: `1px solid ${aiConfig.enabled ? 'rgba(239, 68, 68, 0.4)' : 'rgba(34, 197, 94, 0.4)'}`,
+                      padding: '6px 14px',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: 'var(--text-xs)',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {aiConfig.enabled ? 'Turn OFF' : 'Turn ON'}
+                  </button>
+                </div>
+
                 <div style={{ marginBottom: '16px' }}>
                   <label style={{ display: 'block', fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: '6px' }}>
                     AI Intelligence Provider

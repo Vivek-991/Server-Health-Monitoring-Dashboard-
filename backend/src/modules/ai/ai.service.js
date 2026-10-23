@@ -2,6 +2,7 @@ const logger = require('../../utils/logger');
 
 // Runtime in-memory AI configuration (can be updated via Settings page or loaded from env)
 const aiConfig = {
+  enabled: process.env.AI_ENABLED !== 'false',
   provider: process.env.AI_PROVIDER || (process.env.GEMINI_API_KEY ? 'gemini' : process.env.OPENAI_API_KEY ? 'openai' : 'builtin'),
   apiKey: process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY || '',
   geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
@@ -331,6 +332,20 @@ async function callOpenAI(messages, systemPrompt = '') {
  * Combines real-time telemetry, heuristic baseline, and LLM reasoning.
  */
 async function diagnoseServer(serverTelemetry) {
+  if (aiConfig.enabled === false) {
+    return {
+      healthScore: 100,
+      statusLevel: 'healthy',
+      riskLevel: 'Disabled',
+      summary: 'AI SRE Copilot is currently disabled in Settings. Re-enable it to activate autonomous telemetry evaluation and playbooks.',
+      anomalies: ['AI SRE Copilot is currently paused/disabled.'],
+      recommendations: [],
+      timestamp: new Date().toISOString(),
+      engine: 'disabled',
+      disabled: true,
+    };
+  }
+
   // First, always compute the high-accuracy baseline
   const heuristicResult = analyzeWithHeuristics(serverTelemetry);
 
@@ -416,6 +431,14 @@ Do NOT wrap your output in markdown code blocks like \`\`\`json. Return raw JSON
  * Intelligent Chat with AI SRE Agent
  */
 async function chatWithAgent(messages, serverContext = {}) {
+  if (aiConfig.enabled === false) {
+    return {
+      role: 'assistant',
+      content: '⚠️ **The MonitorX AI SRE Copilot is currently disabled in Settings.**\n\nYou can re-enable it anytime from **Settings ➔ 🤖 AI Agent** to activate live diagnosis, risk scoring, and interactive troubleshooting.',
+      disabled: true,
+    };
+  }
+
   const activeProvider = aiConfig.provider;
   const hasKey = Boolean(aiConfig.apiKey || (activeProvider === 'gemini' ? process.env.GEMINI_API_KEY : process.env.OPENAI_API_KEY));
 
@@ -614,6 +637,10 @@ Feel free to ask any specific DevOps question or click one of the quick prompt s
  * Generate a comprehensive incident remediation playbook
  */
 async function generateRemediationPlan(issueType, serverContext) {
+  if (aiConfig.enabled === false) {
+    return '⚠️ AI Remediation is currently disabled in Settings. Re-enable the AI Agent in Settings to generate playbooks.';
+  }
+
   const serverName = serverContext.name || serverContext.hostname || 'Server';
   const activeProvider = aiConfig.provider;
   const hasKey = Boolean(aiConfig.apiKey || (activeProvider === 'gemini' ? process.env.GEMINI_API_KEY : process.env.OPENAI_API_KEY));

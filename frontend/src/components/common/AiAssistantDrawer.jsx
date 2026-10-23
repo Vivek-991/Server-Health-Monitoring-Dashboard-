@@ -15,6 +15,28 @@ const AiAssistantDrawer = () => {
   const navigate = useNavigate();
   const { agents = {}, current } = useMetrics();
   const [isOpen, setIsOpen] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(() => {
+    const cached = localStorage.getItem('monitorx_ai_enabled');
+    return cached === null ? true : cached === 'true';
+  });
+
+  useEffect(() => {
+    aiApi.getConfig().then((res) => {
+      if (res.success && res.config) {
+        const isEnabled = res.config.enabled !== false;
+        setAiEnabled(isEnabled);
+        localStorage.setItem('monitorx_ai_enabled', String(isEnabled));
+      }
+    }).catch(() => {});
+
+    const onConfigChange = (e) => {
+      if (typeof e.detail?.enabled === 'boolean') {
+        setAiEnabled(e.detail.enabled);
+      }
+    };
+    window.addEventListener('ai-config-changed', onConfigChange);
+    return () => window.removeEventListener('ai-config-changed', onConfigChange);
+  }, []);
 
   // Active server resolution
   const remoteServerList = useMemo(() => {
@@ -161,7 +183,7 @@ const AiAssistantDrawer = () => {
   return (
     <>
       {/* ── Floating Action Trigger Button ─────────────────────────────── */}
-      {!isOpen && (
+      {!isOpen && aiEnabled && (
         <button
           className="ai-floating-trigger"
           onClick={() => setIsOpen(true)}
@@ -178,6 +200,41 @@ const AiAssistantDrawer = () => {
         <>
           <div className="ai-drawer-overlay" onClick={() => setIsOpen(false)} />
           <div className="ai-drawer-panel">
+            {/* Disabled Notification Banner */}
+            {!aiEnabled && (
+              <div
+                style={{
+                  padding: '12px 16px',
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  borderBottom: '1px solid rgba(239, 68, 68, 0.25)',
+                  color: '#ef4444',
+                  fontSize: '0.78rem',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <span>⚠️ AI Agent is currently <strong>DISABLED</strong> in Settings.</span>
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    navigate('/settings');
+                  }}
+                  style={{
+                    background: '#ef4444',
+                    color: '#ffffff',
+                    border: 'none',
+                    padding: '4px 10px',
+                    borderRadius: '4px',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Enable in Settings
+                </button>
+              </div>
+            )}
             {/* Header */}
             <div className="ai-drawer-header">
               <div className="ai-drawer-title">
