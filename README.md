@@ -28,6 +28,9 @@
 | 📊 Performance Charts | Historical line charts for CPU, RAM, Disk & Network |
 | 🔧 Services | Live list of system services and their running status |
 | 🗄️ Persistence | Snapshots stored in MongoDB, auto-purged after 24 hours |
+| 🤖 AI SRE Copilot & Advisor | Autonomous health diagnosis, anomaly detection, recommendations & interactive chat (Gemini / OpenAI / Built-in Engine) |
+| 🛠️ Remediation Playbooks | One-click copyable bash scripts for disk cleanup, RAM tuning & CPU optimization |
+| 💬 Global Floating AI Drawer | Summon the AI assistant from any page across the entire dashboard |
 
 ---
 

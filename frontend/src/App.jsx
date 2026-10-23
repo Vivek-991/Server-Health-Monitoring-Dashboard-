@@ -21,6 +21,8 @@ const ServerDetailPage = lazy(() => import('./pages/ServerDetailPage'));
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
 const ReportsPage = lazy(() => import('./pages/ReportsPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const AiAdvisorPage = lazy(() => import('./pages/AiAdvisorPage'));
+import AiAssistantDrawer from './components/common/AiAssistantDrawer';
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -28,31 +30,37 @@ const ProtectedRoute = ({ children }) => {
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
 
-const AppRoutes = () => (
-  <SettingsProvider>
-    <MetricsProvider>
-      <AlertsProvider>
-        <ActivityProvider>
-          <Router>
-            <Suspense fallback={<Loader message="Loading page…" />}>
-              <Routes>
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                <Route path="/users" element={<ProtectedRoute><UserManagementPage /></ProtectedRoute>} />
-                <Route path="/servers" element={<ProtectedRoute><ServersPage /></ProtectedRoute>} />
-                <Route path="/servers/:id" element={<ProtectedRoute><ServerDetailPage /></ProtectedRoute>} />
-                <Route path="/analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
-                <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
-                <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-                <Route path="*" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-              </Routes>
-            </Suspense>
-          </Router>
-        </ActivityProvider>
-      </AlertsProvider>
-    </MetricsProvider>
-  </SettingsProvider>
-);
+const AppRoutes = () => {
+  const { isAuthenticated } = useAuth();
+  return (
+    <SettingsProvider>
+      <MetricsProvider>
+        <AlertsProvider>
+          <ActivityProvider>
+            <Router>
+              <Suspense fallback={<Loader message="Loading page…" />}>
+                <Routes>
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                  <Route path="/ai-agent" element={<ProtectedRoute><AiAdvisorPage /></ProtectedRoute>} />
+                  <Route path="/ai-advisor" element={<ProtectedRoute><AiAdvisorPage /></ProtectedRoute>} />
+                  <Route path="/users" element={<ProtectedRoute><UserManagementPage /></ProtectedRoute>} />
+                  <Route path="/servers" element={<ProtectedRoute><ServersPage /></ProtectedRoute>} />
+                  <Route path="/servers/:id" element={<ProtectedRoute><ServerDetailPage /></ProtectedRoute>} />
+                  <Route path="/analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
+                  <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
+                  <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+                  <Route path="*" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                </Routes>
+              </Suspense>
+              {isAuthenticated && <AiAssistantDrawer />}
+            </Router>
+          </ActivityProvider>
+        </AlertsProvider>
+      </MetricsProvider>
+    </SettingsProvider>
+  );
+};
 
 function App() {
   return (

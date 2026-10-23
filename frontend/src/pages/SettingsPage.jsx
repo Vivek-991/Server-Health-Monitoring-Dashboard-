@@ -4,7 +4,7 @@ import { useSettings } from '../context/SettingsContext';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useActivity } from '../context/ActivityContext';
-import { fetchSmtpSettings, updateSmtpSettings } from '../api/metricsApi';
+import { fetchSmtpSettings, updateSmtpSettings, aiApi } from '../api/metricsApi';
 
 const SettingsPage = () => {
   const { settings, updateSetting, resetToDefaults } = useSettings();
@@ -46,6 +46,93 @@ const SettingsPage = () => {
       loadSmtp();
     }
   }, [activeTab]);
+
+  // AI Agent form states
+  const [aiForm, setAiForm] = useState({
+    provider: 'builtin',
+    apiKey: '',
+    geminiModel: 'gemini-2.5-flash',
+    openaiModel: 'gpt-4o-mini',
+    maskedApiKey: '',
+    hasApiKey: false,
+  });
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSaving, setAiSaving] = useState(false);
+  const [aiSuccess, setAiSuccess] = useState('');
+  const [aiError, setAiError] = useState('');
+  const [aiTestResult, setAiTestResult] = useState(null);
+
+  // Fetch AI config when switching to ai tab
+  useEffect(() => {
+    if (activeTab === 'ai') {
+      const loadAi = async () => {
+        setAiLoading(true);
+        setAiError('');
+        try {
+          const res = await aiApi.getConfig();
+          if (res.success && res.config) {
+            setAiForm((prev) => ({
+              ...prev,
+              provider: res.config.provider || 'builtin',
+              geminiModel: res.config.geminiModel || 'gemini-2.5-flash',
+              openaiModel: res.config.openaiModel || 'gpt-4o-mini',
+              maskedApiKey: res.config.maskedApiKey || '',
+              hasApiKey: res.config.hasApiKey || false,
+            }));
+          }
+        } catch (err) {
+          setAiError('Failed to load AI settings: ' + err.message);
+        } finally {
+          setAiLoading(false);
+        }
+      };
+      loadAi();
+    }
+  }, [activeTab]);
+
+  const handleSaveAi = async (e) => {
+    e.preventDefault();
+    setAiSuccess('');
+    setAiError('');
+    setAiSaving(true);
+    try {
+      const res = await aiApi.updateConfig({
+        provider: aiForm.provider,
+        apiKey: aiForm.apiKey,
+        geminiModel: aiForm.geminiModel,
+        openaiModel: aiForm.openaiModel,
+      });
+      if (res.success) {
+        setAiSuccess('AI Agent configuration updated successfully!');
+        setAiForm((prev) => ({
+          ...prev,
+          apiKey: '',
+          maskedApiKey: res.config.maskedApiKey || '',
+          hasApiKey: res.config.hasApiKey || false,
+        }));
+        addLog('system', 'AI Agent configuration updated', user?.email);
+      } else {
+        setAiError(res.message || 'Failed to update AI settings.');
+      }
+    } catch (err) {
+      setAiError(err.message || 'Error updating AI configuration.');
+    } finally {
+      setAiSaving(false);
+    }
+  };
+
+  const handleTestAi = async () => {
+    setAiTestResult({ loading: true, message: 'Validating connection...' });
+    try {
+      const res = await aiApi.testConnection({
+        provider: aiForm.provider,
+        apiKey: aiForm.apiKey || undefined,
+      });
+      setAiTestResult({ success: res.success, message: res.message });
+    } catch (err) {
+      setAiTestResult({ success: false, message: err.message });
+    }
+  };
 
   const handleSaveAccount = (e) => {
     e.preventDefault();
@@ -136,6 +223,7 @@ const SettingsPage = () => {
             <button className={`settings-tab-link ${activeTab === 'thresholds' ? 'active' : ''}`} onClick={() => setActiveTab('thresholds')}>🚨 Thresholds</button>
             <button className={`settings-tab-link ${activeTab === 'preferences' ? 'active' : ''}`} onClick={() => setActiveTab('preferences')}>🎨 Preferences</button>
             <button className={`settings-tab-link ${activeTab === 'smtp' ? 'active' : ''}`} onClick={() => setActiveTab('smtp')}>📧 Email Alerts</button>
+            <button className={`settings-tab-link ${activeTab === 'ai' ? 'active' : ''}`} onClick={() => setActiveTab('ai')}>🤖 AI Agent</button>
             <button className={`settings-tab-link ${activeTab === 'account' ? 'active' : ''}`} onClick={() => setActiveTab('account')}>👤 Account</button>
           </div>
         </div>
@@ -318,6 +406,110 @@ const SettingsPage = () => {
                   <button type="submit" className="btn-primary mt-6" disabled={smtpLoading}>
                     {smtpLoading ? 'Saving alert setup...' : 'Save Alert settings'}
                   </button>
+                </form>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'ai' && (
+            <div className="settings-panel animate-fade-in">
+              <div className="settings-panel-header">
+                <h3>🤖 AI SRE Copilot Configuration</h3>
+                <p>Configure autonomous server diagnostics, recommendations, and conversational SRE engine.</p>
+              </div>
+
+              {aiSuccess && <div className="auth-success-pill mb-4">{aiSuccess}</div>}
+              {aiError && <div className="auth-error mb-4">{aiError}</div>}
+
+              {aiLoading ? (
+                <p className="text-muted">Loading AI settings...</p>
+              ) : (
+                <form onSubmit={handleSaveAi} className="settings-account-form">
+                  <div className="form-group">
+                    <label className="form-label" style={{ fontWeight: 700 }}>AI Intelligence Engine</label>
+                    <select
+                      className="form-control"
+                      value={aiForm.provider}
+                      onChange={(e) => setAiForm({ ...aiForm, provider: e.target.value })}
+                    >
+                      <option value="builtin">Built-in SRE Heuristic Engine (Offline / Zero-Config / Fast)</option>
+                      <option value="gemini">Google Gemini AI (gemini-2.5-flash / gemini-1.5-flash)</option>
+                      <option value="openai">OpenAI (gpt-4o-mini / gpt-4o)</option>
+                    </select>
+                    <small className="text-muted" style={{ display: 'block', marginTop: '4px' }}>
+                      The built-in engine detects bottlenecks (CPU, RAM, Disks, OOM risk) and provides copyable bash scripts without requiring external API keys.
+                    </small>
+                  </div>
+
+                  {aiForm.provider !== 'builtin' && (
+                    <>
+                      <div className="form-group">
+                        <label className="form-label" style={{ fontWeight: 700 }}>
+                          {aiForm.provider === 'gemini' ? 'Google Gemini API Key' : 'OpenAI API Key'}
+                        </label>
+                        <input
+                          type="password"
+                          className="form-control"
+                          placeholder={aiForm.maskedApiKey ? `Configured (${aiForm.maskedApiKey})` : 'Enter API Key...'}
+                          value={aiForm.apiKey}
+                          onChange={(e) => setAiForm({ ...aiForm, apiKey: e.target.value })}
+                        />
+                        <small className="text-muted" style={{ display: 'block', marginTop: '4px' }}>
+                          Keys can also be configured in <code>backend/.env</code> via <code>GEMINI_API_KEY</code> or <code>OPENAI_API_KEY</code>.
+                        </small>
+                      </div>
+
+                      <div className="form-group">
+                        <label className="form-label" style={{ fontWeight: 700 }}>Model Name</label>
+                        {aiForm.provider === 'gemini' ? (
+                          <select
+                            className="form-control"
+                            value={aiForm.geminiModel}
+                            onChange={(e) => setAiForm({ ...aiForm, geminiModel: e.target.value })}
+                          >
+                            <option value="gemini-2.5-flash">gemini-2.5-flash (Recommended, Fast & Cost-effective)</option>
+                            <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+                            <option value="gemini-1.5-pro">gemini-1.5-pro (Deep reasoning)</option>
+                          </select>
+                        ) : (
+                          <select
+                            className="form-control"
+                            value={aiForm.openaiModel}
+                            onChange={(e) => setAiForm({ ...aiForm, openaiModel: e.target.value })}
+                          >
+                            <option value="gpt-4o-mini">gpt-4o-mini (Recommended, Fast & Cost-effective)</option>
+                            <option value="gpt-4o">gpt-4o</option>
+                          </select>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {aiTestResult && (
+                    <div
+                      style={{
+                        padding: '10px 14px',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: 'var(--text-sm)',
+                        marginTop: '12px',
+                        marginBottom: '12px',
+                        background: aiTestResult.success ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                        color: aiTestResult.success ? '#4ade80' : '#f87171',
+                        border: `1px solid ${aiTestResult.success ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                      }}
+                    >
+                      {aiTestResult.message}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '20px', alignItems: 'center' }}>
+                    <button type="submit" className="btn-primary" disabled={aiSaving}>
+                      {aiSaving ? 'Saving AI Settings...' : 'Save AI Settings'}
+                    </button>
+                    <button type="button" className="btn-secondary" onClick={handleTestAi}>
+                      🧪 Test Connection
+                    </button>
+                  </div>
                 </form>
               )}
             </div>

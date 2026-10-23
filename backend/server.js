@@ -1,5 +1,4 @@
-const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
+require('dotenv').config();
 const http = require('http');
 const { Server } = require('socket.io');
 
@@ -51,22 +50,19 @@ const io = new Server(httpServer, {
 app.set('socketio', io);
 
 // ── DB + Services ─────────────────────────────────────────────────────────────
+connectDB();
+initMetricsSocket(io);
+
+const { initTransporter } = require('./src/services/emailService');
+initTransporter().catch((err) => logger.error('Failed to initialize email transporter:', err.message));
+
+// ── Listen ────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
 
-const startServer = async () => {
-  await connectDB();
-  initMetricsSocket(io);
-
-  const { initTransporter } = require('./src/services/emailService');
-  initTransporter().catch((err) => logger.error('Failed to initialize email transporter:', err.message));
-
-  httpServer.listen(PORT, '0.0.0.0', () => {
-    logger.info(`Server running on http://localhost:${PORT} [${process.env.NODE_ENV || 'development'}]`);
-    logger.info(`Client expected at: ${process.env.CLIENT_URL || 'http://localhost:3002'}`);
-  });
-};
-
-startServer();
+httpServer.listen(PORT, '0.0.0.0', () => {
+  logger.info(`Server running on http://localhost:${PORT} [${process.env.NODE_ENV || 'development'}]`);
+  logger.info(`Client expected at: ${process.env.CLIENT_URL || 'http://localhost:3002'}`);
+});
 
 httpServer.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {

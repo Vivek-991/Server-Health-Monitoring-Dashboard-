@@ -220,6 +220,26 @@ const ServerDetailPage = () => {
 
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <button
+            onClick={() => navigate('/ai-agent')}
+            style={{
+              background: 'linear-gradient(135deg, rgba(99, 132, 255, 0.2) 0%, rgba(168, 85, 247, 0.2) 100%)',
+              color: 'var(--color-accent-blue)',
+              border: '1px solid rgba(99, 132, 255, 0.4)',
+              padding: '8px 16px',
+              borderRadius: 'var(--radius-md)',
+              fontWeight: '700',
+              fontSize: 'var(--text-sm)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 0 15px rgba(99, 132, 255, 0.2)',
+            }}
+          >
+            🤖 Consult AI SRE
+          </button>
+          <button
             onClick={handleDeleteServer}
             style={{
               background: 'rgba(239, 68, 68, 0.15)',

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import useMetrics from '../hooks/useMetrics';
 import { useAuth } from '../context/AuthContext';
 import PageLayout from '../components/common/PageLayout';
@@ -26,6 +27,7 @@ import '../styles/dashboard.css';
 import { formatBytes, formatBandwidth, toFixed } from '../utils/formatters';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { agents, historyMap, loading, error } = useMetrics();
   const [selectedServerId, setSelectedServerId] = useState('');
@@ -126,6 +128,28 @@ const Dashboard = () => {
                 </select>
               </div>
             )}
+
+            {/* AI Advisor Button */}
+            <button
+              onClick={() => navigate('/ai-agent')}
+              style={{
+                padding: '10px 16px',
+                fontSize: 'var(--text-sm)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: 'linear-gradient(135deg, rgba(99, 132, 255, 0.2) 0%, rgba(168, 85, 247, 0.2) 100%)',
+                border: '1px solid rgba(99, 132, 255, 0.4)',
+                color: 'var(--color-accent-blue)',
+                borderRadius: 'var(--radius-md)',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: '0 0 15px rgba(99, 132, 255, 0.2)',
+              }}
+              title="Autonomous SRE Diagnoses & Recommendations"
+            >
+              🤖 AI Advisor
+            </button>
 
             {/* Connect New Server Button */}
             <button

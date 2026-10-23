@@ -95,4 +95,13 @@ export const userApi = {
   delete: (id) => apiClient.delete(`/users/${id}`),
 };
 
+export const aiApi = {
+  diagnose: (data = {}) => apiClient.post('/ai/diagnose', data),
+  chat: (data = {}) => apiClient.post('/ai/chat', data),
+  remediation: (data = {}) => apiClient.post('/ai/remediation', data),
+  getConfig: () => apiClient.get('/ai/config'),
+  updateConfig: (data = {}) => apiClient.post('/ai/config', data),
+  testConnection: (data = {}) => apiClient.post('/ai/test', data),
+};
+
 export default apiClient;

@@ -6,11 +6,15 @@
 
 .main-content {
   flex: 1;
+  min-width: 0;
   margin-left: var(--sidebar-width);
+  width: calc(100% - var(--sidebar-width));
+  max-width: calc(100% - var(--sidebar-width));
   padding-top: var(--navbar-height);
   min-height: 100vh;
   background: var(--color-bg-primary);
   transition: margin-left var(--transition-base);
+  overflow-x: hidden;
 }
 
 /* ── Dashboard Page ─────────────────────────────────────────────────────────── */
@@ -80,7 +84,6 @@
 }
 
 @media (max-width: 900px) {
-  .main-content { margin-left: 0; }
   .dashboard-page { padding: var(--space-4); }
   .bottom-grid    { grid-template-columns: 1fr; }
   .stats-grid     { grid-template-columns: repeat(2, 1fr); }

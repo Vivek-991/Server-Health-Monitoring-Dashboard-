@@ -7,6 +7,7 @@ import { useAlerts } from '../../context/AlertsContext';
 
 const mainNavItems = [
   { icon: '📊', label: 'Dashboard',     path: '/' },
+  { icon: '🤖', label: 'AI Advisor',    path: '/ai-agent', badge: 'AI' },
   { icon: '🖥️', label: 'Servers',       path: '/servers' },
   { icon: '📈', label: 'Analytics',     path: '/analytics' },
   { icon: '📄', label: 'Reports',       path: '/reports' },
@@ -63,6 +64,11 @@ const Sidebar = () => {
           >
             <span className="nav-icon">{item.icon}</span>
             {item.label}
+            {item.badge && (
+              <span className="sidebar-badge" style={{ background: 'linear-gradient(135deg, #6384ff, #a855f7)', color: '#fff', fontSize: '0.65rem' }}>
+                {item.badge}
+              </span>
+            )}
             {item.label === 'Alerts' && unreadCount > 0 && (
               <span className="sidebar-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
             )}
